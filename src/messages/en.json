@@ -1,0 +1,151 @@
+{
+    "common": {
+        "loading": "Loading...",
+        "error": "An error occurred",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "create": "Create",
+        "back": "Back",
+        "next": "Next",
+        "confirm": "Confirm",
+        "yes": "Yes",
+        "no": "No",
+        "close": "Close",
+        "add": "Add"
+    },
+    "auth": {
+        "login": "Login",
+        "register": "Register",
+        "logout": "Logout",
+        "email": "Email",
+        "password": "Password",
+        "confirmPassword": "Confirm password",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "phone": "Phone",
+        "forgotPassword": "Forgot password?",
+        "noAccount": "Don't have an account?",
+        "hasAccount": "Already have an account?",
+        "loginButton": "Sign in",
+        "registerButton": "Sign up",
+        "loginTitle": "Welcome back",
+        "loginSubtitle": "Sign in to your account",
+        "registerTitle": "Create account",
+        "registerSubtitle": "Start managing your warehouses",
+        "errors": {
+            "invalidEmail": "Invalid email",
+            "passwordMin": "Password must be at least 8 characters",
+            "passwordMatch": "Passwords don't match",
+            "required": "Required field",
+            "invalidCredentials": "Invalid email or password"
+        }
+    },
+    "welcome": {
+        "title": "Warehouse Management",
+        "subtitle": "Modern inventory, transfers, and finance tracking system",
+        "features": {
+            "warehouses": "Unlimited warehouses",
+            "transfers": "Point-to-point transfers",
+            "debts": "Automatic debt tracking",
+            "reports": "Analytics and reports"
+        },
+        "getStarted": "Get Started",
+        "learnMore": "Learn More"
+    },
+    "dashboard": {
+        "title": "Dashboard",
+        "welcome": "Welcome",
+        "stats": {
+            "totalProducts": "Total Products",
+            "totalWarehouses": "Warehouses",
+            "pendingTransfers": "Pending Transfers",
+            "totalDebt": "Total Debt"
+        },
+        "emptyState": {
+            "title": "Get Started",
+            "description": "Create your first warehouse to start using the system",
+            "createWarehouse": "Create Warehouse"
+        },
+        "sidebar": {
+            "overview": "Overview",
+            "points": "Points",
+            "warehouses": "Warehouses",
+            "employees": "Employees",
+            "products": "Products",
+            "settings": "Settings",
+            "logout": "Logout"
+        }
+    },
+    "warehouses": {
+        "title": "Warehouses",
+        "create": "Create Warehouse",
+        "edit": "Edit Warehouse",
+        "name": "Name",
+        "namePlaceholder": "Main Warehouse",
+        "address": "Address",
+        "addressPlaceholder": "123 Warehouse St",
+        "description": "Description",
+        "descriptionPlaceholder": "Warehouse description",
+        "point": "Point",
+        "status": "Status",
+        "active": "Active",
+        "inactive": "Inactive",
+        "empty": {
+            "title": "No Warehouses",
+            "description": "Create your first warehouse to get started"
+        },
+        "deleteConfirm": "Are you sure you want to delete this warehouse?",
+        "created": "Warehouse created",
+        "updated": "Warehouse updated",
+        "deleted": "Warehouse deleted"
+    },
+    "settings": {
+        "title": "Settings",
+        "subtitle": "Manage account and preferences",
+        "profile": "Profile",
+        "role": "Role",
+        "organizer": "Organizer",
+        "pointAdmin": "Point Admin",
+        "appearance": "Appearance",
+        "theme": "Theme",
+        "language": "Language",
+        "account": "Account",
+        "logoutButton": "Sign out"
+    },
+    "theme": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+    },
+    "points": {
+        "title": "Points",
+        "description": "Manage business locations and branches",
+        "create": "Create Point",
+        "name": "Name",
+        "address": "Address",
+        "noPoints": "No points",
+        "noPointsDescription": "Create your first point to add warehouses and assign employees.",
+        "warehouses": "Warehouses",
+        "employees": "Emp."
+    },
+    "employees": {
+        "title": "Employees",
+        "description": "Manage staff and access rights",
+        "add": "Add Employee",
+        "searchPlaceholder": "Search by name or email...",
+        "noEmployees": "No employees",
+        "noEmployeesDescription": "Add employees to assign them as point responsibles.",
+        "assignPoint": "Assign Point",
+        "createTitle": "New Employee",
+        "firstName": "First Name",
+        "lastName": "Last Name",
+        "phone": "Phone",
+        "email": "Email",
+        "password": "Password",
+        "assignTitle": "Assign Point",
+        "assignDescription": "Select the point this employee will have access to.",
+        "noPoints": "No available points"
+    }
+}

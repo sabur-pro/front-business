@@ -1,0 +1,23 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=https://api-business.medlife.tj
+    container_name: mybusiness-front
+    restart: unless-stopped
+    expose:
+      - "3005"
+    environment:
+      - VIRTUAL_HOST=business.medlife.tj
+      - VIRTUAL_PORT=3005
+      - LETSENCRYPT_HOST=business.medlife.tj
+      - LETSENCRYPT_EMAIL=afprojects052000@gmail.com
+      - NODE_ENV=production
+    networks:
+      - proxy-network
+
+networks:
+  proxy-network:
+    external: true

@@ -1,0 +1,151 @@
+{
+    "common": {
+        "loading": "Загрузка...",
+        "error": "Произошла ошибка",
+        "save": "Сохранить",
+        "cancel": "Отмена",
+        "delete": "Удалить",
+        "edit": "Редактировать",
+        "create": "Создать",
+        "back": "Назад",
+        "next": "Далее",
+        "confirm": "Подтвердить",
+        "yes": "Да",
+        "no": "Нет",
+        "close": "Закрыть",
+        "add": "Добавить"
+    },
+    "auth": {
+        "login": "Вход",
+        "register": "Регистрация",
+        "logout": "Выход",
+        "email": "Email",
+        "password": "Пароль",
+        "confirmPassword": "Подтвердите пароль",
+        "firstName": "Имя",
+        "lastName": "Фамилия",
+        "phone": "Телефон",
+        "forgotPassword": "Забыли пароль?",
+        "noAccount": "Нет аккаунта?",
+        "hasAccount": "Уже есть аккаунт?",
+        "loginButton": "Войти",
+        "registerButton": "Зарегистрироваться",
+        "loginTitle": "Добро пожаловать",
+        "loginSubtitle": "Войдите в свой аккаунт",
+        "registerTitle": "Создать аккаунт",
+        "registerSubtitle": "Начните управлять складами",
+        "errors": {
+            "invalidEmail": "Некорректный email",
+            "passwordMin": "Пароль минимум 8 символов",
+            "passwordMatch": "Пароли не совпадают",
+            "required": "Обязательное поле",
+            "invalidCredentials": "Неверный email или пароль"
+        }
+    },
+    "welcome": {
+        "title": "Управление складами",
+        "subtitle": "Современная система учёта товаров, перемещений и финансов",
+        "features": {
+            "warehouses": "Неограниченные склады",
+            "transfers": "Перемещения между точками",
+            "debts": "Автоматический учёт долгов",
+            "reports": "Аналитика и отчёты"
+        },
+        "getStarted": "Начать",
+        "learnMore": "Узнать больше"
+    },
+    "dashboard": {
+        "title": "Панель управления",
+        "welcome": "Добро пожаловать",
+        "stats": {
+            "totalProducts": "Всего товаров",
+            "totalWarehouses": "Складов",
+            "pendingTransfers": "Ожидающих перемещений",
+            "totalDebt": "Общий долг"
+        },
+        "emptyState": {
+            "title": "Начните работу",
+            "description": "Создайте свой первый склад для начала работы с системой",
+            "createWarehouse": "Создать склад"
+        },
+        "sidebar": {
+            "overview": "Обзор",
+            "points": "Точки",
+            "warehouses": "Склады",
+            "employees": "Сотрудники",
+            "products": "Товары",
+            "settings": "Настройки",
+            "logout": "Выйти"
+        }
+    },
+    "warehouses": {
+        "title": "Склады",
+        "create": "Создать склад",
+        "edit": "Редактировать склад",
+        "name": "Название",
+        "namePlaceholder": "Основной склад",
+        "address": "Адрес",
+        "addressPlaceholder": "ул. Складская, 1",
+        "description": "Описание",
+        "descriptionPlaceholder": "Описание склада",
+        "point": "Точка",
+        "status": "Статус",
+        "active": "Активен",
+        "inactive": "Неактивен",
+        "empty": {
+            "title": "Нет складов",
+            "description": "Создайте первый склад для начала работы"
+        },
+        "deleteConfirm": "Вы уверены, что хотите удалить этот склад?",
+        "created": "Склад создан",
+        "updated": "Склад обновлён",
+        "deleted": "Склад удалён"
+    },
+    "settings": {
+        "title": "Настройки",
+        "subtitle": "Управление аккаунтом и предпочтениями",
+        "profile": "Профиль",
+        "role": "Роль",
+        "organizer": "Организатор",
+        "pointAdmin": "Админ точки",
+        "appearance": "Оформление",
+        "theme": "Тема",
+        "language": "Язык",
+        "account": "Аккаунт",
+        "logoutButton": "Выйти из аккаунта"
+    },
+    "theme": {
+        "light": "Светлая",
+        "dark": "Тёмная",
+        "system": "Системная"
+    },
+    "points": {
+        "title": "Точки",
+        "description": "Управление торговыми точками и филиалами",
+        "create": "Создать точку",
+        "name": "Название",
+        "address": "Адрес",
+        "noPoints": "Нет точек",
+        "noPointsDescription": "Создайте первую точку, чтобы добавлять склады и назначать сотрудников.",
+        "warehouses": "Складов",
+        "employees": "Сотр."
+    },
+    "employees": {
+        "title": "Сотрудники",
+        "description": "Управление персоналом и доступами",
+        "add": "Добавить сотрудника",
+        "searchPlaceholder": "Поиск по имени или email...",
+        "noEmployees": "Нет сотрудников",
+        "noEmployeesDescription": "Добавьте сотрудников, чтобы назначить их ответственными за точки.",
+        "assignPoint": "Назначить точку",
+        "createTitle": "Новый сотрудник",
+        "firstName": "Имя",
+        "lastName": "Фамилия",
+        "phone": "Телефон",
+        "email": "Email",
+        "password": "Пароль",
+        "assignTitle": "Назначить на точку",
+        "assignDescription": "Выберите точку, к которой будет иметь доступ этот сотрудник.",
+        "noPoints": "Нет доступных точек"
+    }
+}
