@@ -19,12 +19,14 @@ import {
     Pencil,
     Check,
     X,
+    Package,
 } from 'lucide-react';
 import { Button, Card, Input } from '@/components/ui';
 import {
     organizationApi,
     warehouseApi,
     employeeApi,
+    productApi,
     PointResponse,
     WarehouseResponse,
     EmployeeResponse,
@@ -70,6 +72,7 @@ export default function PointDetailPage() {
     const [pointEmployees, setPointEmployees] = useState<EmployeeResponse[]>([]);
     const [allEmployees, setAllEmployees] = useState<EmployeeResponse[]>([]);
     const [activeTab, setActiveTab] = useState<Tab>('warehouses');
+    const [warehouseProductCounts, setWarehouseProductCounts] = useState<Record<string, number>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isWarehouseModalOpen, setIsWarehouseModalOpen] = useState(false);
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -77,6 +80,7 @@ export default function PointDetailPage() {
     const [isEditingPoint, setIsEditingPoint] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
     const { settings, fetchSettings } = useSettingsStore();
 
     const {
@@ -126,6 +130,20 @@ export default function PointDetailPage() {
             setWarehouses(warehousesData);
             setPointEmployees(pointEmps);
             setAllEmployees(allEmps);
+
+            // Load product counts per warehouse
+            const counts: Record<string, number> = {};
+            await Promise.all(
+                warehousesData.map(async (wh) => {
+                    try {
+                        const res = await productApi.searchByWarehouse(wh.id, { page: 1, limit: 1 });
+                        counts[wh.id] = res.total;
+                    } catch {
+                        counts[wh.id] = 0;
+                    }
+                })
+            );
+            setWarehouseProductCounts(counts);
         } catch (err) {
             console.error('Failed to load point data', err);
         } finally {
@@ -277,16 +295,18 @@ export default function PointDetailPage() {
                                 </p>
                             )}
                         </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                                resetEdit({ name: point.name, address: point.address || '' });
-                                setIsEditingPoint(true);
-                            }}
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </Button>
+                        {(settings?.canAddPoints !== false) && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                    resetEdit({ name: point.name, address: point.address || '' });
+                                    setIsEditingPoint(true);
+                                }}
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        )}
                     </div>
                 )}
             </div>
@@ -374,19 +394,11 @@ export default function PointDetailPage() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.05 }}
                                 >
-                                    <Card className="p-5">
+                                    <Card className="p-5 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push(`/dashboard/warehouses/${wh.id}`)}>
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="p-2 rounded-xl bg-green-500/10">
                                                 <Warehouse className="h-5 w-5 text-green-500" />
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-destructive hover:bg-destructive/10"
-                                                onClick={() => onDeleteWarehouse(wh.id)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
                                         </div>
                                         <h4 className="font-semibold mb-1">{wh.name}</h4>
                                         {wh.address && (
@@ -399,10 +411,22 @@ export default function PointDetailPage() {
                                                 <FileText className="h-3 w-3" /> {wh.description}
                                             </p>
                                         )}
-                                        <div className="mt-3">
+                                        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Package className="h-3 w-3" />
+                                            <span>Товаров: <strong className="text-foreground">{warehouseProductCounts[wh.id] ?? 0}</strong></span>
+                                        </div>
+                                        <div className="mt-3 flex items-center justify-between">
                                             <span className={`text-xs px-2 py-1 rounded-full ${wh.isActive ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}>
                                                 {wh.isActive ? 'Активен' : 'Неактивен'}
                                             </span>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/receipt?pointId=${pointId}&warehouseId=${wh.id}`); }}
+                                            >
+                                                <Package className="h-3.5 w-3.5 mr-1.5" />
+                                                Приход
+                                            </Button>
                                         </div>
                                     </Card>
                                 </motion.div>
@@ -452,16 +476,38 @@ export default function PointDetailPage() {
                                                     <p className="text-xs text-muted-foreground">{emp.email}</p>
                                                 </div>
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="text-destructive hover:bg-destructive/10"
-                                                onClick={() => onUnassignEmployee(emp.id)}
-                                                title="Снять с точки"
-                                            >
-                                                <UserMinus className="h-4 w-4" />
-                                            </Button>
+                                            {(settings?.canAddEmployees !== false) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setExpandedEmployeeId(expandedEmployeeId === emp.id ? null : emp.id)}
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                            )}
                                         </div>
+                                        <AnimatePresence>
+                                            {expandedEmployeeId === emp.id && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    className="overflow-hidden"
+                                                >
+                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                                                            onClick={() => onUnassignEmployee(emp.id)}
+                                                        >
+                                                            <UserMinus className="h-3.5 w-3.5 mr-1.5" />
+                                                            Снять с точки
+                                                        </Button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </Card>
                                 </motion.div>
                             ))}

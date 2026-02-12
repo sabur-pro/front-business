@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
@@ -12,6 +13,7 @@ import {
     Search,
     FileText,
     Plus,
+    Package,
 } from 'lucide-react';
 import { Card, Input, Button } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -29,6 +31,7 @@ type WarehouseFormData = z.infer<typeof warehouseSchema>;
 
 export default function WarehousesPage() {
     const tWarehouses = useTranslations('warehouses');
+    const router = useRouter();
     const { user } = useAuthStore();
     const { settings, fetchSettings } = useSettingsStore();
 
@@ -150,7 +153,7 @@ export default function WarehousesPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
                         >
-                            <Card className="p-6 hover:shadow-lg transition-shadow">
+                            <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/dashboard/warehouses/${warehouse.id}`)}>
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="p-2 rounded-xl bg-green-500/10">
                                         <Warehouse className="h-5 w-5 text-green-500" />
@@ -170,11 +173,21 @@ export default function WarehousesPage() {
                                         <FileText className="h-3 w-3" /> {warehouse.description}
                                     </p>
                                 )}
-                                <div className="mt-3 pt-3 border-t">
+                                <div className="mt-3 pt-3 border-t flex items-center justify-between">
                                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                                         <MapPin className="h-3 w-3" />
                                         Точка: {getPointName(warehouse.pointId) || 'Неизвестная'}
                                     </p>
+                                    {(user?.role === 'ORGANIZER' || settings?.canAddProducts) && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/receipt?pointId=${warehouse.pointId}&warehouseId=${warehouse.id}`); }}
+                                        >
+                                            <Package className="h-3.5 w-3.5 mr-1.5" />
+                                            Приход
+                                        </Button>
+                                    )}
                                 </div>
                             </Card>
                         </motion.div>

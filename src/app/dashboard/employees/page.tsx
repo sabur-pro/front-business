@@ -11,17 +11,18 @@ import {
     UserPlus,
     MapPin,
     Search,
-    MoreVertical,
     Shield,
     Phone,
     Mail,
     Trash2,
     Check,
-    UserMinus,
     X,
+    Package,
+    SendHorizontal,
+    PackageCheck,
 } from 'lucide-react';
 import { Button, Card, Input } from '@/components/ui';
-import { employeeApi, organizationApi, EmployeeResponse, PointResponse } from '@/lib/api';
+import { employeeApi, organizationApi, settingsApi, EmployeeResponse, PointResponse } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { useSettingsStore } from '@/stores/settings-store';
 
@@ -53,6 +54,9 @@ export default function EmployeesPage() {
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [assignSuccess, setAssignSuccess] = useState<string | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [detailEmployee, setDetailEmployee] = useState<EmployeeResponse | null>(null);
+    const [isTogglingPermission, setIsTogglingPermission] = useState(false);
 
     // Forms
     const {
@@ -274,7 +278,10 @@ export default function EmployeesPage() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.05 }}
                             >
-                                <Card className="p-6">
+                                <Card className="p-6 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
+                                    setDetailEmployee(employee);
+                                    setIsDetailModalOpen(true);
+                                }}>
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
@@ -305,47 +312,30 @@ export default function EmployeesPage() {
 
                                     {/* Assigned points */}
                                     {assignedPoints.length > 0 && (
-                                        <div className="mb-4 space-y-1.5">
+                                        <div className="space-y-1.5">
                                             {assignedPoints.map(ap => (
-                                                <div key={ap.pointId} className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-primary/5 text-primary">
-                                                    <div className="flex items-center gap-2">
-                                                        <MapPin className="h-3 w-3" />
-                                                        <span className="font-medium">{ap.pointName}</span>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => onUnassignPoint(employee.id, ap.pointId)}
-                                                        className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"
-                                                        title="Снять с точки"
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </button>
+                                                <div key={ap.pointId} className="flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg bg-primary/5 text-primary">
+                                                    <MapPin className="h-3 w-3" />
+                                                    <span className="font-medium">{ap.pointName}</span>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
 
-                                    <div className="border-t border-border/50 pt-4 mt-4 flex gap-2">
-                                        {assignedPoints.length < points.length && (
-                                            <Button
-                                                variant="outline"
-                                                className="flex-1"
-                                                onClick={() => {
-                                                    setSelectedEmployeeId(employee.id);
-                                                    setIsAssignModalOpen(true);
-                                                }}
-                                            >
-                                                <MapPin className="h-4 w-4 mr-2" />
-                                                {assignedPoints.length > 0 ? 'Добавить точку' : 'Назначить точку'}
-                                            </Button>
+                                    {/* Permission badges */}
+                                    <div className="flex gap-1.5 mt-3 flex-wrap">
+                                        {employee.canCreateShipment && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                                                <SendHorizontal className="h-2.5 w-2.5" />
+                                                Отправка
+                                            </span>
                                         )}
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                            onClick={() => onDeleteEmployee(employee.id)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        {employee.canReceiveShipment && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
+                                                <PackageCheck className="h-2.5 w-2.5" />
+                                                Приёмка
+                                            </span>
+                                        )}
                                     </div>
                                 </Card>
                             </motion.div>
@@ -480,6 +470,259 @@ export default function EmployeesPage() {
                                 <Button variant="outline" className="w-full" onClick={() => setIsAssignModalOpen(false)}>
                                     Закрыть
                                 </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Employee Detail Modal */}
+            <AnimatePresence>
+                {isDetailModalOpen && detailEmployee && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                        onClick={() => setIsDetailModalOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="w-full max-w-md lg:max-w-[80%] bg-card/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/50 max-h-[90vh] overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-6 border-b border-border/50 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
+                                        {detailEmployee.firstName[0]}{detailEmployee.lastName[0]}
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-semibold">{detailEmployee.fullName}</h2>
+                                        <div className="flex items-center text-sm text-muted-foreground gap-1">
+                                            <Shield className="h-3.5 w-3.5" />
+                                            {detailEmployee.role === 'POINT_ADMIN' ? 'Админ точки' : detailEmployee.role}
+                                        </div>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsDetailModalOpen(false)} className="p-2 rounded-lg hover:bg-muted transition-colors">
+                                    <X className="h-5 w-5 text-muted-foreground" />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-5">
+                                {/* Contact info */}
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Контакты</h3>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-3 text-sm">
+                                            <Mail className="h-4 w-4 text-muted-foreground" />
+                                            <span>{detailEmployee.email}</span>
+                                        </div>
+                                        {detailEmployee.phone && (
+                                            <div className="flex items-center gap-3 text-sm">
+                                                <Phone className="h-4 w-4 text-muted-foreground" />
+                                                <span>{detailEmployee.phone}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Assigned points with unassign + add */}
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Назначенные точки</h3>
+                                    {getEmployeePoints(detailEmployee.id).length > 0 ? (
+                                        <div className="space-y-1.5">
+                                            {getEmployeePoints(detailEmployee.id).map(ap => (
+                                                <div key={ap.pointId} className="flex items-center justify-between text-sm px-3 py-2 rounded-lg bg-primary/5 text-primary">
+                                                    <div className="flex items-center gap-2">
+                                                        <MapPin className="h-4 w-4" />
+                                                        <span className="font-medium">{ap.pointName}</span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => onUnassignPoint(detailEmployee.id, ap.pointId)}
+                                                        className="p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                                        title="Снять с точки"
+                                                    >
+                                                        <X className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">Не назначен ни на одну точку</p>
+                                    )}
+                                    {getEmployeePoints(detailEmployee.id).length < points.length && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full"
+                                            onClick={() => {
+                                                setSelectedEmployeeId(detailEmployee.id);
+                                                setIsAssignModalOpen(true);
+                                            }}
+                                        >
+                                            <MapPin className="h-3.5 w-3.5 mr-1.5" />
+                                            Добавить на точку
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {/* Permissions */}
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Разрешения</h3>
+
+                                    {/* canCreateShipment toggle */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-orange-500/10">
+                                                <SendHorizontal className="h-4 w-4 text-orange-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">Создание отправок</p>
+                                                <p className="text-xs text-muted-foreground">Разрешить отправлять товары</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                setIsTogglingPermission(true);
+                                                try {
+                                                    const updated = await employeeApi.updatePermissions(detailEmployee.id, {
+                                                        canCreateShipment: !detailEmployee.canCreateShipment,
+                                                    });
+                                                    setDetailEmployee(updated);
+                                                    setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
+                                                } catch (err: any) {
+                                                    setError(err.response?.data?.message || 'Ошибка обновления разрешения');
+                                                } finally {
+                                                    setIsTogglingPermission(false);
+                                                }
+                                            }}
+                                            disabled={isTogglingPermission}
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                                                detailEmployee.canCreateShipment
+                                                    ? 'bg-green-500'
+                                                    : 'bg-gray-300 dark:bg-gray-600'
+                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                        >
+                                            <span
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                                                    detailEmployee.canCreateShipment ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
+
+                                    {/* canReceiveShipment toggle */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-green-500/10">
+                                                <PackageCheck className="h-4 w-4 text-green-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">Приёмка отправок</p>
+                                                <p className="text-xs text-muted-foreground">Разрешить принимать товары</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                setIsTogglingPermission(true);
+                                                try {
+                                                    const updated = await employeeApi.updatePermissions(detailEmployee.id, {
+                                                        canReceiveShipment: !detailEmployee.canReceiveShipment,
+                                                    });
+                                                    setDetailEmployee(updated);
+                                                    setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
+                                                } catch (err: any) {
+                                                    setError(err.response?.data?.message || 'Ошибка обновления разрешения');
+                                                } finally {
+                                                    setIsTogglingPermission(false);
+                                                }
+                                            }}
+                                            disabled={isTogglingPermission}
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                                                detailEmployee.canReceiveShipment
+                                                    ? 'bg-green-500'
+                                                    : 'bg-gray-300 dark:bg-gray-600'
+                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                        >
+                                            <span
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                                                    detailEmployee.canReceiveShipment ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
+
+                                    {/* canAddProducts toggle (org-level) */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-purple-500/10">
+                                                <Package className="h-4 w-4 text-purple-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">Добавление товаров</p>
+                                                <p className="text-xs text-muted-foreground">Разрешить добавлять товары (приход)</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                setIsTogglingPermission(true);
+                                                try {
+                                                    const newValue = !settings?.canAddProducts;
+                                                    await settingsApi.update({ canAddProducts: newValue });
+                                                    await fetchSettings();
+                                                } catch (err: any) {
+                                                    setError(err.response?.data?.message || 'Ошибка обновления разрешения');
+                                                } finally {
+                                                    setIsTogglingPermission(false);
+                                                }
+                                            }}
+                                            disabled={isTogglingPermission}
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                                                settings?.canAddProducts
+                                                    ? 'bg-green-500'
+                                                    : 'bg-gray-300 dark:bg-gray-600'
+                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                        >
+                                            <span
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                                                    settings?.canAddProducts ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Status */}
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className={`w-2 h-2 rounded-full ${detailEmployee.isActive ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                    <span className="text-muted-foreground">
+                                        {detailEmployee.isActive ? 'Активен' : 'Неактивен'}
+                                    </span>
+                                    <span className="text-muted-foreground ml-auto text-xs">
+                                        Добавлен {new Date(detailEmployee.createdAt).toLocaleDateString('ru-RU')}
+                                    </span>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-3 pt-2 border-t border-border/50">
+                                    <Button variant="outline" className="flex-1" onClick={() => setIsDetailModalOpen(false)}>
+                                        Закрыть
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => {
+                                            setIsDetailModalOpen(false);
+                                            onDeleteEmployee(detailEmployee.id);
+                                        }}
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-1.5" />
+                                        Удалить
+                                    </Button>
+                                </div>
                             </div>
                         </motion.div>
                     </motion.div>

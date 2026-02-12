@@ -13,10 +13,12 @@ import {
     Users,
     ChevronRight,
     Shield,
+    SendHorizontal,
 } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/stores';
-import { warehouseApi, organizationApi, WarehouseResponse, PointResponse } from '@/lib/api';
+import { useSettingsStore } from '@/stores/settings-store';
+import { warehouseApi, organizationApi, productApi, WarehouseResponse, PointResponse } from '@/lib/api';
 
 export default function DashboardPage() {
     const t = useTranslations('dashboard');
@@ -26,7 +28,9 @@ export default function DashboardPage() {
 
     const [warehouses, setWarehouses] = useState<WarehouseResponse[]>([]);
     const [points, setPoints] = useState<PointResponse[]>([]);
+    const [totalProducts, setTotalProducts] = useState<number>(0);
     const [isLoadingData, setIsLoadingData] = useState(false);
+    const { settings, fetchSettings } = useSettingsStore();
 
     useEffect(() => {
         if (!isLoading && !isAuthenticated) {
@@ -37,6 +41,7 @@ export default function DashboardPage() {
     useEffect(() => {
         if (isAuthenticated) {
             loadData();
+            if (!settings) fetchSettings();
         }
     }, [isAuthenticated]);
 
@@ -49,6 +54,16 @@ export default function DashboardPage() {
             ]);
             setWarehouses(warehousesData);
             setPoints(pointsData);
+
+            // Fetch total product count across all warehouses
+            try {
+                let totalProd = 0;
+                for (const wh of warehousesData) {
+                    const res = await productApi.searchByWarehouse(wh.id, { page: 1, limit: 1 });
+                    totalProd += res.total;
+                }
+                setTotalProducts(totalProd);
+            } catch { /* ignore */ }
         } catch (error) {
             console.error('Failed to load data', error);
         } finally {
@@ -99,6 +114,7 @@ export default function DashboardPage() {
                 <OrganizerDashboard
                     points={points}
                     warehouses={warehouses}
+                    totalProducts={totalProducts}
                     router={router}
                     t={t}
                     tWarehouses={tWarehouses}
@@ -107,6 +123,7 @@ export default function DashboardPage() {
                 <PointAdminDashboard
                     points={points}
                     warehouses={warehouses}
+                    canReceipt={user?.role === 'ORGANIZER' || !!settings?.canAddProducts}
                     router={router}
                 />
             )}
@@ -118,12 +135,14 @@ export default function DashboardPage() {
 function OrganizerDashboard({
     points,
     warehouses,
+    totalProducts,
     router,
     t,
     tWarehouses,
 }: {
     points: PointResponse[];
     warehouses: WarehouseResponse[];
+    totalProducts: number;
     router: ReturnType<typeof useRouter>;
     t: any;
     tWarehouses: any;
@@ -131,7 +150,7 @@ function OrganizerDashboard({
     const stats = [
         { label: t('stats.totalWarehouses'), value: String(warehouses.length), icon: Warehouse, color: 'bg-green-500/10 text-green-500' },
         { label: 'Точек', value: String(points.length), icon: MapPin, color: 'bg-blue-500/10 text-blue-500' },
-        { label: t('stats.totalProducts'), value: '0', icon: Package, color: 'bg-orange-500/10 text-orange-500' },
+        { label: t('stats.totalProducts'), value: String(totalProducts), icon: Package, color: 'bg-orange-500/10 text-orange-500' },
         { label: t('stats.totalDebt'), value: '₽0', icon: CreditCard, color: 'bg-purple-500/10 text-purple-500' },
     ];
 
@@ -160,7 +179,41 @@ function OrganizerDashboard({
             {/* Quick Actions */}
             <div>
                 <h2 className="text-xl font-semibold mb-4">Быстрые действия</h2>
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card
+                        className="p-5 hover:shadow-lg transition-shadow cursor-pointer group"
+                        onClick={() => router.push('/dashboard/receipt')}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-orange-500/10">
+                                    <Package className="h-5 w-5 text-orange-500" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold">Приход</h3>
+                                    <p className="text-sm text-muted-foreground">Оформить приход</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                    </Card>
+                    <Card
+                        className="p-5 hover:shadow-lg transition-shadow cursor-pointer group"
+                        onClick={() => router.push('/dashboard/shipments')}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-indigo-500/10">
+                                    <SendHorizontal className="h-5 w-5 text-indigo-500" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold">Заявки</h3>
+                                    <p className="text-sm text-muted-foreground">Отправки и приёмки</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                    </Card>
                     <Card
                         className="p-5 hover:shadow-lg transition-shadow cursor-pointer group"
                         onClick={() => router.push('/dashboard/points')}
@@ -262,10 +315,12 @@ function OrganizerDashboard({
 function PointAdminDashboard({
     points,
     warehouses,
+    canReceipt,
     router,
 }: {
     points: PointResponse[];
     warehouses: WarehouseResponse[];
+    canReceipt: boolean;
     router: ReturnType<typeof useRouter>;
 }) {
     return (
@@ -286,6 +341,49 @@ function PointAdminDashboard({
                     <p className="text-2xl font-bold">{warehouses.length}</p>
                     <p className="text-sm text-muted-foreground">Мои склады</p>
                 </Card>
+            </div>
+
+            {/* Quick Actions */}
+            <div>
+                <h2 className="text-xl font-semibold mb-4">Быстрые действия</h2>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <Card
+                        className="p-5 hover:shadow-lg transition-shadow cursor-pointer group"
+                        onClick={() => router.push('/dashboard/shipments')}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-indigo-500/10">
+                                    <SendHorizontal className="h-5 w-5 text-indigo-500" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold">Заявки</h3>
+                                    <p className="text-sm text-muted-foreground">Отправки и приёмки</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                    </Card>
+                    {canReceipt && (
+                        <Card
+                            className="p-5 hover:shadow-lg transition-shadow cursor-pointer group"
+                            onClick={() => router.push('/dashboard/receipt')}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-orange-500/10">
+                                        <Package className="h-5 w-5 text-orange-500" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold">Приход</h3>
+                                        <p className="text-sm text-muted-foreground">Оформить приход</p>
+                                    </div>
+                                </div>
+                                <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                        </Card>
+                    )}
+                </div>
             </div>
 
             {/* Points with warehouses */}
@@ -336,14 +434,20 @@ function PointAdminDashboard({
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ delay: pi * 0.1 + wi * 0.05 }}
                                                 >
-                                                    <Card className="p-5">
+                                                    <Card
+                                                        className="p-5 hover:shadow-lg transition-shadow cursor-pointer group"
+                                                        onClick={() => router.push(`/dashboard/warehouses/${wh.id}`)}
+                                                    >
                                                         <div className="flex items-start justify-between mb-3">
                                                             <div className="p-2 rounded-xl bg-green-500/10">
                                                                 <Warehouse className="h-5 w-5 text-green-500" />
                                                             </div>
-                                                            <span className={`text-xs px-2 py-1 rounded-full ${wh.isActive ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}>
-                                                                {wh.isActive ? 'Активен' : 'Неактивен'}
-                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`text-xs px-2 py-1 rounded-full ${wh.isActive ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                                                                    {wh.isActive ? 'Активен' : 'Неактивен'}
+                                                                </span>
+                                                                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                            </div>
                                                         </div>
                                                         <h4 className="font-semibold mb-1">{wh.name}</h4>
                                                         {wh.address && (

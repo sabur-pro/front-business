@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -10,14 +11,22 @@ import {
     Users,
     Settings,
     MapPin,
+    Package,
+    SendHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
+import { useSettingsStore } from '@/stores/settings-store';
 
 export function BottomNav() {
     const pathname = usePathname();
     const t = useTranslations('dashboard');
     const { user } = useAuthStore();
+    const { settings, fetchSettings } = useSettingsStore();
+
+    useEffect(() => {
+        if (!settings) fetchSettings();
+    }, []);
 
     const menuItems = [
         {
@@ -36,6 +45,17 @@ export function BottomNav() {
             icon: Warehouse,
             label: t('sidebar.warehouses'),
             href: '/dashboard/warehouses',
+            roles: ['POINT_ADMIN'],
+        },
+        {
+            icon: Package,
+            label: 'Приход',
+            href: '/dashboard/receipt',
+        },
+        {
+            icon: SendHorizontal,
+            label: 'Заявки',
+            href: '/dashboard/shipments',
         },
         {
             icon: Users,
@@ -51,7 +71,13 @@ export function BottomNav() {
     ];
 
     const filteredItems = menuItems.filter(item => {
-        if (!item.roles) return true;
+        if (!item.roles) {
+            // Hide Приход for POINT_ADMIN when canAddProducts is false
+            if (item.href === '/dashboard/receipt' && user?.role === 'POINT_ADMIN' && settings && !settings.canAddProducts) {
+                return false;
+            }
+            return true;
+        }
         return user?.role && item.roles.includes(user.role);
     });
 
