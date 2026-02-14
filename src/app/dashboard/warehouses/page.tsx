@@ -14,6 +14,7 @@ import {
     FileText,
     Plus,
     Package,
+    Store,
 } from 'lucide-react';
 import { Card, Input, Button } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -22,6 +23,7 @@ import { warehouseApi, organizationApi, WarehouseResponse, PointResponse } from 
 
 const warehouseSchema = z.object({
     name: z.string().min(1, 'Название обязательно'),
+    type: z.enum(['WAREHOUSE', 'SHOP']).optional(),
     address: z.string().optional(),
     description: z.string().optional(),
     pointId: z.string().min(1, 'Выберите точку'),
@@ -104,13 +106,13 @@ export default function WarehousesPage() {
                 <div>
                     <h1 className="text-3xl font-bold">{tWarehouses('title')}</h1>
                     <p className="text-muted-foreground">
-                        {user?.role === 'ORGANIZER' ? 'Все склады организации' : 'Склады ваших точек'}
+                        {user?.role === 'ORGANIZER' ? 'Все склады и магазины организации' : 'Склады и магазины ваших точек'}
                     </p>
                 </div>
                 {user?.role === 'ORGANIZER' && (settings?.canAddWarehouses !== false) && (
                     <Button onClick={() => setIsCreateModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Добавить склад
+                        Добавить
                     </Button>
                 )}
             </div>
@@ -155,14 +157,23 @@ export default function WarehousesPage() {
                         >
                             <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/dashboard/warehouses/${warehouse.id}`)}>
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="p-2 rounded-xl bg-green-500/10">
-                                        <Warehouse className="h-5 w-5 text-green-500" />
+                                    <div className={`p-2 rounded-xl ${warehouse.type === 'SHOP' ? 'bg-purple-500/10' : 'bg-green-500/10'}`}>
+                                        {warehouse.type === 'SHOP' ? (
+                                            <Store className="h-5 w-5 text-purple-500" />
+                                        ) : (
+                                            <Warehouse className="h-5 w-5 text-green-500" />
+                                        )}
                                     </div>
                                     <span className={`text-xs px-2 py-1 rounded-full ${warehouse.isActive ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}>
                                         {warehouse.isActive ? tWarehouses('active') : tWarehouses('inactive')}
                                     </span>
                                 </div>
-                                <h3 className="font-semibold mb-1">{warehouse.name}</h3>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="font-semibold">{warehouse.name}</h3>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${warehouse.type === 'SHOP' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'}`}>
+                                        {warehouse.type === 'SHOP' ? 'Магазин' : 'Склад'}
+                                    </span>
+                                </div>
                                 {warehouse.address && (
                                     <p className="text-sm text-muted-foreground flex items-center gap-1 mb-1">
                                         <MapPin className="h-3 w-3" /> {warehouse.address}
@@ -212,9 +223,20 @@ export default function WarehousesPage() {
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="p-6 border-b border-border/50">
-                                <h2 className="text-xl font-semibold">Новый склад</h2>
+                                <h2 className="text-xl font-semibold">Новый склад / магазин</h2>
                             </div>
                             <form onSubmit={handleSubmit(onCreateWarehouse)} className="p-6 space-y-4">
+                                {/* Type selector */}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5">Тип</label>
+                                    <select
+                                        {...register('type')}
+                                        className="w-full rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option value="WAREHOUSE">Склад</option>
+                                        <option value="SHOP">Магазин</option>
+                                    </select>
+                                </div>
                                 <Input
                                     {...register('name')}
                                     label="Название"

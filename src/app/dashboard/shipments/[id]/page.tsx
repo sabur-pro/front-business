@@ -453,15 +453,24 @@ export default function ShipmentDetailPage() {
                                 </button>
                             </div>
                         ) : (
-                            <label className="flex flex-col items-center justify-center gap-2 p-8 rounded-xl border-2 border-dashed border-green-500/30 hover:border-green-500/50 cursor-pointer transition-colors bg-green-500/5">
-                                <Camera className="h-8 w-8 text-green-500" />
-                                <span className="text-sm text-green-600 dark:text-green-400 font-medium">Сфотографировать накладную</span>
-                                <span className="text-xs text-muted-foreground">Нажмите для загрузки фото</span>
-                                <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                                    const f = e.target.files?.[0];
-                                    if (f) handlePhotoUpload(f);
-                                }} />
-                            </label>
+                            <div className="flex gap-3">
+                                <label className="flex-1 flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-green-500/30 hover:border-green-500/50 cursor-pointer transition-colors bg-green-500/5">
+                                    <ImageIcon className="h-8 w-8 text-green-500" />
+                                    <span className="text-sm text-green-600 dark:text-green-400 font-medium">Галерея</span>
+                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) handlePhotoUpload(f);
+                                    }} />
+                                </label>
+                                <label className="flex-1 flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-green-500/30 hover:border-green-500/50 cursor-pointer transition-colors bg-green-500/5">
+                                    <Camera className="h-8 w-8 text-green-500" />
+                                    <span className="text-sm text-green-600 dark:text-green-400 font-medium">Камера</span>
+                                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) handlePhotoUpload(f);
+                                    }} />
+                                </label>
+                            </div>
                         )}
                     </div>
 

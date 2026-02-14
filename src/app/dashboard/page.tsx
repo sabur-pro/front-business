@@ -14,6 +14,9 @@ import {
     ChevronRight,
     Shield,
     SendHorizontal,
+    Store,
+    Users2,
+    Banknote,
 } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/stores';
@@ -148,11 +151,13 @@ function OrganizerDashboard({
     tWarehouses: any;
 }) {
     const stats = [
-        { label: t('stats.totalWarehouses'), value: String(warehouses.length), icon: Warehouse, color: 'bg-green-500/10 text-green-500' },
+        { label: t('stats.totalWarehouses'), value: String(warehouses.filter(w => w.type !== 'SHOP').length), icon: Warehouse, color: 'bg-green-500/10 text-green-500' },
+        { label: 'Магазинов', value: String(warehouses.filter(w => w.type === 'SHOP').length), icon: Store, color: 'bg-purple-500/10 text-purple-500' },
         { label: 'Точек', value: String(points.length), icon: MapPin, color: 'bg-blue-500/10 text-blue-500' },
         { label: t('stats.totalProducts'), value: String(totalProducts), icon: Package, color: 'bg-orange-500/10 text-orange-500' },
-        { label: t('stats.totalDebt'), value: '₽0', icon: CreditCard, color: 'bg-purple-500/10 text-purple-500' },
     ];
+
+    const hasShops = warehouses.some(w => w.type === 'SHOP');
 
     return (
         <>
@@ -265,6 +270,59 @@ function OrganizerDashboard({
                             <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                     </Card>
+                    {hasShops && (
+                        <Card
+                            className="p-5 hover:shadow-lg transition-shadow cursor-pointer group"
+                            onClick={() => router.push('/dashboard/shop')}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-purple-500/10">
+                                        <Store className="h-5 w-5 text-purple-500" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold">Магазин</h3>
+                                        <p className="text-sm text-muted-foreground">Продажи и товары</p>
+                                    </div>
+                                </div>
+                                <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                        </Card>
+                    )}
+                    <Card
+                        className="p-5 hover:shadow-lg transition-shadow cursor-pointer group"
+                        onClick={() => router.push('/dashboard/counterparties')}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-teal-500/10">
+                                    <Users2 className="h-5 w-5 text-teal-500" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold">Контрагенты</h3>
+                                    <p className="text-sm text-muted-foreground">Поставщики и клиенты</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                    </Card>
+                    <Card
+                        className="p-5 hover:shadow-lg transition-shadow cursor-pointer group"
+                        onClick={() => router.push('/dashboard/cash-register')}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-emerald-500/10">
+                                    <Banknote className="h-5 w-5 text-emerald-500" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold">Касса</h3>
+                                    <p className="text-sm text-muted-foreground">Управление финансами</p>
+                                </div>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                    </Card>
                 </div>
             </div>
 
@@ -296,9 +354,17 @@ function OrganizerDashboard({
                                         {point.address && (
                                             <p className="text-sm text-muted-foreground mb-3">{point.address}</p>
                                         )}
-                                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                            <Warehouse className="h-3.5 w-3.5" />
-                                            <span>{pointWarehouses.length} складов</span>
+                                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                            <span className="flex items-center gap-1">
+                                                <Warehouse className="h-3.5 w-3.5" />
+                                                {pointWarehouses.filter(w => w.type !== 'SHOP').length}
+                                            </span>
+                                            {pointWarehouses.some(w => w.type === 'SHOP') && (
+                                                <span className="flex items-center gap-1 text-purple-500">
+                                                    <Store className="h-3.5 w-3.5" />
+                                                    {pointWarehouses.filter(w => w.type === 'SHOP').length}
+                                                </span>
+                                            )}
                                         </div>
                                     </Card>
                                 </motion.div>

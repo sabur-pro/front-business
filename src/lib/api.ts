@@ -173,7 +173,7 @@ export const warehouseApi = {
     create: async (data: CreateWarehouseData) => {
         const response = await api.post<WarehouseResponse>('/warehouses', data);
         return response.data;
-    },
+    },                                                                                                                                                          
 
     update: async (id: string, data: UpdateWarehouseData) => {
         const response = await api.put<WarehouseResponse>(`/warehouses/${id}`, data);
@@ -259,11 +259,14 @@ export interface UserResponse {
     phone?: string;
     role: 'ORGANIZER' | 'POINT_ADMIN';
     accountId?: string;
+    canAddProducts?: boolean;
+    canManageCounterparties?: boolean;
 }
 
 export interface WarehouseResponse {
     id: string;
     name: string;
+    type: 'WAREHOUSE' | 'SHOP';
     pointId: string;
     address: string | null;
     description: string | null;
@@ -274,6 +277,7 @@ export interface WarehouseResponse {
 
 export interface CreateWarehouseData {
     name: string;
+    type?: 'WAREHOUSE' | 'SHOP';
     pointId: string;
     address?: string;
     description?: string;
@@ -393,6 +397,9 @@ export interface EmployeeResponse {
     role: string;
     canCreateShipment: boolean;
     canReceiveShipment: boolean;
+    canSell: boolean;
+    canAddProducts: boolean;
+    canManageCounterparties: boolean;
     isActive: boolean;
     createdAt: string;
 }
@@ -400,6 +407,9 @@ export interface EmployeeResponse {
 export interface UpdateEmployeePermissionsData {
     canCreateShipment?: boolean;
     canReceiveShipment?: boolean;
+    canSell?: boolean;
+    canAddProducts?: boolean;
+    canManageCounterparties?: boolean;
 }
 
 export interface CreateEmployeeData {
@@ -562,6 +572,8 @@ export interface BatchProductItem {
 export interface BatchCreateProductsData {
     pointId: string;
     warehouseId?: string;
+    supplierId?: string;
+    paidAmount?: number;
     items: BatchProductItem[];
 }
 
@@ -671,6 +683,416 @@ export interface AcceptShipmentData {
     receiverWaybillPhoto?: string;
 }
 
+// ==================== SHOP API ====================
+
+export interface ShopEmployeeResponse {
+    id: string;
+    warehouseId: string;
+    userId: string;
+    createdAt: string;
+    userName?: string;
+    userEmail?: string;
+    userPhone?: string | null;
+    shopName?: string;
+}
+
+export interface AddShopEmployeeData {
+    shopId: string;
+    userId: string;
+}
+
+export const shopApi = {
+    addEmployee: async (data: AddShopEmployeeData) => {
+        const response = await api.post<ShopEmployeeResponse>('/shops/employees', data);
+        return response.data;
+    },
+
+    getEmployees: async (shopId: string) => {
+        const response = await api.get<ShopEmployeeResponse[]>(`/shops/employees/${shopId}`);
+        return response.data;
+    },
+
+    getMyShops: async () => {
+        const response = await api.get<ShopEmployeeResponse[]>('/shops/my-shops');
+        return response.data;
+    },
+
+    removeEmployee: async (shopId: string, userId: string) => {
+        await api.delete(`/shops/employees/${shopId}/${userId}`);
+    },
+};
+
+// ==================== SALE API ====================
+
+export type SaleStatus = 'COMPLETED' | 'CANCELLED';
+
+export interface SaleItemResponse {
+    id: string;
+    productId: string | null;
+    sku: string;
+    photo: string | null;
+    sizeRange: string | null;
+    boxCount: number;
+    pairCount: number;
+    priceYuan: number;
+    priceRub: number;
+    totalYuan: number;
+    totalRub: number;
+    recommendedSalePrice: number;
+    actualSalePrice: number;
+    totalRecommended: number;
+    totalActual: number;
+    profit: number;
+}
+
+export interface SaleResponse {
+    id: string;
+    number: string;
+    pointId: string;
+    shopId: string;
+    accountId: string;
+    totalYuan: number;
+    totalRub: number;
+    totalRecommended: number;
+    totalActual: number;
+    paidAmount: number;
+    paymentMethod: PaymentMethod;
+    profit: number;
+    status: SaleStatus;
+    note: string | null;
+    soldById: string | null;
+    clientId: string | null;
+    clientName?: string;
+    createdAt: string;
+    updatedAt: string;
+    items: SaleItemResponse[];
+    shopName?: string;
+    pointName?: string;
+    soldByName?: string;
+}
+
+export interface PaginatedSalesResponse {
+    items: SaleResponse[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface CreateSaleItemData {
+    productId: string;
+    boxCount: number;
+    pairCount: number;
+    actualSalePrice: number;
+}
+
+export interface CreateSaleData {
+    shopId: string;
+    note?: string;
+    clientId?: string;
+    paidAmount?: number;
+    paymentMethod?: PaymentMethod;
+    items: CreateSaleItemData[];
+}
+
+export const saleApi = {
+    create: async (data: CreateSaleData) => {
+        const response = await api.post<SaleResponse>('/sales', data);
+        return response.data;
+    },
+
+    getByShop: async (shopId: string, params?: { page?: number; limit?: number; status?: SaleStatus }) => {
+        const response = await api.get<PaginatedSalesResponse>(`/sales/shop/${shopId}`, { params });
+        return response.data;
+    },
+
+    getByAccount: async (accountId: string, params?: { page?: number; limit?: number; status?: SaleStatus }) => {
+        const response = await api.get<PaginatedSalesResponse>(`/sales/account/${accountId}`, { params });
+        return response.data;
+    },
+
+    getById: async (id: string) => {
+        const response = await api.get<SaleResponse>(`/sales/${id}`);
+        return response.data;
+    },
+
+    cancel: async (id: string) => {
+        const response = await api.put<SaleResponse>(`/sales/${id}/cancel`);
+        return response.data;
+    },
+};
+
+// ==================== COUNTERPARTY API ====================
+
+export type CounterpartyType = 'SUPPLIER' | 'CLIENT';
+export type CounterpartyTransactionType = 'GOODS_RECEIVED' | 'GOODS_SOLD' | 'PAYMENT_IN' | 'PAYMENT_OUT';
+
+export interface CounterpartyResponse {
+    id: string;
+    name: string;
+    phone: string | null;
+    note: string | null;
+    type: CounterpartyType;
+    accountId: string;
+    balance: number;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface PaginatedCounterpartiesResponse {
+    items: CounterpartyResponse[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface CounterpartyTransactionResponse {
+    id: string;
+    counterpartyId: string;
+    type: CounterpartyTransactionType;
+    amount: number;
+    description: string | null;
+    relatedId: string | null;
+    createdAt: string;
+}
+
+export interface PaginatedCounterpartyTransactionsResponse {
+    items: CounterpartyTransactionResponse[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface CreateCounterpartyData {
+    name: string;
+    phone?: string;
+    note?: string;
+    type: CounterpartyType;
+}
+
+export interface UpdateCounterpartyData {
+    name?: string;
+    phone?: string;
+    note?: string;
+    isActive?: boolean;
+}
+
+export interface PayCounterpartyDebtData {
+    counterpartyId: string;
+    amount: number;
+    description?: string;
+    fromCashRegisterId?: string;
+}
+
+export const counterpartyApi = {
+    create: (data: CreateCounterpartyData) =>
+        api.post<CounterpartyResponse>('/counterparties', data).then(r => r.data),
+
+    getByAccount: (accountId: string, params?: { page?: number; limit?: number; type?: CounterpartyType; search?: string }) =>
+        api.get<PaginatedCounterpartiesResponse>(`/counterparties/account/${accountId}`, { params }).then(r => r.data),
+
+    getById: (id: string) =>
+        api.get<CounterpartyResponse>(`/counterparties/${id}`).then(r => r.data),
+
+    getTransactions: (id: string, params?: { page?: number; limit?: number }) =>
+        api.get<PaginatedCounterpartyTransactionsResponse>(`/counterparties/${id}/transactions`, { params }).then(r => r.data),
+
+    update: (id: string, data: UpdateCounterpartyData) =>
+        api.put<CounterpartyResponse>(`/counterparties/${id}`, data).then(r => r.data),
+
+    payDebt: (data: PayCounterpartyDebtData) =>
+        api.post<CounterpartyResponse>('/counterparties/pay-debt', data).then(r => r.data),
+};
+
+// ==================== CASH REGISTER API ====================
+
+export type PaymentMethod = 'CASH' | 'CARD';
+
+export type CashTransactionType =
+    | 'SALE_INCOME'
+    | 'SALE_INCOME_CARD'
+    | 'PAYMENT_TO_SUPPLIER'
+    | 'PAYMENT_FROM_CLIENT'
+    | 'EXPENSE'
+    | 'ADJUSTMENT'
+    | 'TRANSFER_TO_SAFE'
+    | 'TRANSFER_FROM_SAFE'
+    | 'CARD_TO_SAFE'
+    | 'SAFE_TO_CARD'
+    | 'PAYOUT_CASH'
+    | 'PAYOUT_SAFE'
+    | 'PAYOUT_CARD';
+
+export interface CashRegisterResponse {
+    id: string;
+    shopId: string;
+    balance: number;
+    cardBalance: number;
+    safeBalance: number;
+    shopName?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CashTransactionResponse {
+    id: string;
+    cashRegisterId: string;
+    type: CashTransactionType;
+    amount: number;
+    description: string | null;
+    counterpartyId: string | null;
+    relatedId: string | null;
+    createdAt: string;
+}
+
+export interface CashRegisterSummaryResponse {
+    register: CashRegisterResponse;
+    totalOwedToSuppliers: number;
+    totalOwedByClients: number;
+}
+
+export interface PaginatedCashTransactionsResponse {
+    items: CashTransactionResponse[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface PayFromCashRegisterData {
+    shopId: string;
+    counterpartyId: string;
+    amount: number;
+    description?: string;
+}
+
+export interface ReceiveToCashRegisterData {
+    shopId: string;
+    counterpartyId: string;
+    amount: number;
+    description?: string;
+}
+
+// ==================== EXPENSE TYPES ====================
+
+export interface ExpenseResponse {
+    id: string;
+    cashRegisterId: string;
+    category: string;
+    amount: number;
+    description: string | null;
+    paymentMethod: string;
+    createdById: string | null;
+    createdAt: string;
+}
+
+export interface PaginatedExpensesResponse {
+    items: ExpenseResponse[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface CreateExpenseData {
+    shopId: string;
+    category: string;
+    amount: number;
+    description?: string;
+    paymentMethod?: PaymentMethod;
+}
+
+// ==================== PAYOUT TYPES ====================
+
+export type PayoutStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface PayoutResponse {
+    id: string;
+    number: string;
+    cashRegisterId: string;
+    shopId: string;
+    accountId: string;
+    cashAmount: number;
+    safeAmount: number;
+    cardAmount: number;
+    totalAmount: number;
+    status: PayoutStatus;
+    note: string | null;
+    createdById: string | null;
+    approvedById: string | null;
+    approvedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface PaginatedPayoutsResponse {
+    items: PayoutResponse[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface CreatePayoutData {
+    shopId: string;
+    cashAmount?: number;
+    safeAmount?: number;
+    cardAmount?: number;
+    note?: string;
+}
+
+export interface TransferToSafeData {
+    shopId: string;
+    amount: number;
+    source: 'CASH' | 'CARD';
+}
+
+export const cashRegisterApi = {
+    getSummary: (shopId: string) =>
+        api.get<CashRegisterSummaryResponse>(`/cash-register/shop/${shopId}`).then(r => r.data),
+
+    getTransactions: (shopId: string, params?: { page?: number; limit?: number }) =>
+        api.get<PaginatedCashTransactionsResponse>(`/cash-register/shop/${shopId}/transactions`, { params }).then(r => r.data),
+
+    paySupplier: (data: PayFromCashRegisterData) =>
+        api.post<CashRegisterResponse>('/cash-register/pay-supplier', data).then(r => r.data),
+
+    receiveFromClient: (data: ReceiveToCashRegisterData) =>
+        api.post<CashRegisterResponse>('/cash-register/receive-from-client', data).then(r => r.data),
+
+    transferToSafe: (data: TransferToSafeData) =>
+        api.post<CashRegisterResponse>('/cash-register/transfer-to-safe', data).then(r => r.data),
+
+    // Expenses
+    createExpense: (data: CreateExpenseData) =>
+        api.post<ExpenseResponse>('/cash-register/expense', data).then(r => r.data),
+
+    getExpenses: (shopId: string, params?: { page?: number; limit?: number }) =>
+        api.get<PaginatedExpensesResponse>(`/cash-register/shop/${shopId}/expenses`, { params }).then(r => r.data),
+
+    // Payouts
+    createPayout: (data: CreatePayoutData) =>
+        api.post<PayoutResponse>('/cash-register/payout', data).then(r => r.data),
+
+    approvePayout: (id: string) =>
+        api.put<PayoutResponse>(`/cash-register/payout/${id}/approve`).then(r => r.data),
+
+    rejectPayout: (id: string) =>
+        api.put<PayoutResponse>(`/cash-register/payout/${id}/reject`).then(r => r.data),
+
+    getPayoutsByShop: (shopId: string, params?: { page?: number; limit?: number; status?: PayoutStatus }) =>
+        api.get<PaginatedPayoutsResponse>(`/cash-register/payouts/shop/${shopId}`, { params }).then(r => r.data),
+
+    getPayoutsByAccount: (accountId: string, params?: { page?: number; limit?: number; status?: PayoutStatus }) =>
+        api.get<PaginatedPayoutsResponse>(`/cash-register/payouts/account/${accountId}`, { params }).then(r => r.data),
+
+    getPayoutById: (id: string) =>
+        api.get<PayoutResponse>(`/cash-register/payout/${id}`).then(r => r.data),
+};
+
 export const shipmentApi = {
     create: async (data: CreateShipmentData) => {
         const response = await api.post<ShipmentResponse>('/shipments', data);
@@ -689,6 +1111,11 @@ export const shipmentApi = {
 
     getById: async (id: string) => {
         const response = await api.get<ShipmentResponse>(`/shipments/${id}`);
+        return response.data;
+    },
+
+    getMy: async (params?: { page?: number; limit?: number; status?: ShipmentStatus }) => {
+        const response = await api.get<PaginatedShipmentsResponse>('/shipments/my', { params });
         return response.data;
     },
 

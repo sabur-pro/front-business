@@ -16,8 +16,9 @@ import {
     ChevronDown,
     FileSpreadsheet,
     AlertCircle,
+    Camera,
 } from 'lucide-react';
-import { Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input, CounterpartySelect } from '@/components/ui';
 import {
     organizationApi,
     productApi,
@@ -82,6 +83,10 @@ export default function ReceiptPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+
+    // Supplier & payment
+    const [supplierId, setSupplierId] = useState<string | null>(null);
+    const [supplierPaidAmount, setSupplierPaidAmount] = useState<number>(0);
 
     const normalizeSkuPrefix = (char: string): string => {
         const upper = char.toUpperCase();
@@ -341,11 +346,15 @@ export default function ReceiptPage() {
 
             const result = await productApi.batchCreate({
                 pointId: selectedPointId,
+                supplierId: supplierId || undefined,
+                paidAmount: supplierId ? supplierPaidAmount : undefined,
                 items,
             });
 
             setSuccess(`Приход оформлен! Добавлено товаров: ${result.count}`);
             setRows([emptyRow()]);
+            setSupplierId(null);
+            setSupplierPaidAmount(0);
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'Ошибка оформления прихода');
         } finally {
@@ -440,6 +449,45 @@ export default function ReceiptPage() {
                             <p className="font-medium">Склад определяется автоматически по артикулу:</p>
                             <p className="mt-1">Артикул на <span className="font-bold">A/А</span> → склад <span className="font-bold">Мужской</span> | Артикул на <span className="font-bold">B/В</span> → склад <span className="font-bold">Женский</span></p>
                         </div>
+                    </div>
+                )}
+
+                {/* Supplier selection */}
+                {selectedPointId && user?.accountId && (user?.role === 'ORGANIZER' || user?.canManageCounterparties) && (
+                    <div className="mt-4 space-y-3">
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Поставщик (необязательно)</label>
+                            <CounterpartySelect
+                                accountId={user.accountId}
+                                type="SUPPLIER"
+                                value={supplierId}
+                                onChange={(id) => {
+                                    setSupplierId(id);
+                                    if (!id) setSupplierPaidAmount(0);
+                                }}
+                                showBalance
+                                allowCreate
+                            />
+                        </div>
+                        {supplierId && (
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Сумма оплаты поставщику</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    step={0.01}
+                                    value={supplierPaidAmount || ''}
+                                    onChange={(e) => setSupplierPaidAmount(parseFloat(e.target.value) || 0)}
+                                    placeholder="0"
+                                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                />
+                                <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                                    <span className="text-muted-foreground">Итого товаров: <span className="font-bold text-foreground">{grandTotalRub.toLocaleString()} ₽</span></span>
+                                    <span className="text-muted-foreground">Оплачено: <span className="font-bold text-green-600 dark:text-green-400">{supplierPaidAmount.toLocaleString()} ₽</span></span>
+                                    <span className="text-muted-foreground">Остаток долга: <span className="font-bold text-red-500">{Math.max(0, grandTotalRub - supplierPaidAmount).toLocaleString()} ₽</span></span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </Card>
@@ -539,16 +587,25 @@ export default function ReceiptPage() {
 
                                 {/* SKU + Size Range + Barcode */}
                                 <div className="grid gap-2 grid-cols-3">
-                                    <div className="relative">
-                                        <input value={row.sku} onChange={(e) => updateRow(row.id, 'sku', e.target.value)} placeholder="Артикул * (A/А.../B/В...)" className={`w-full px-2.5 py-1.5 rounded-md border bg-background text-xs focus:outline-none focus:ring-1 ${row.sku.trim() && !isSkuValid(row.sku) ? 'border-destructive focus:ring-destructive/30 focus:border-destructive' : 'border-border focus:ring-primary/30 focus:border-primary'}`} />
-                                        {row.sku.trim() && (
-                                            <span className={`absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1 py-0.5 rounded ${isSkuValid(row.sku) ? (getWarehouseNameBySku(row.sku) === 'Мужской' ? 'bg-blue-500/15 text-blue-600' : 'bg-pink-500/15 text-pink-600') : 'bg-destructive/15 text-destructive'}`}>
-                                                {isSkuValid(row.sku) ? getWarehouseNameBySku(row.sku) === 'Мужской' ? 'М' : 'Ж' : '!'}
-                                            </span>
-                                        )}
+                                    <div>
+                                        <label className="text-[10px] text-muted-foreground block mb-0.5">Артикул *</label>
+                                        <div className="relative">
+                                            <input value={row.sku} onChange={(e) => updateRow(row.id, 'sku', e.target.value)} placeholder="A/А.../B/В..." className={`w-full px-2.5 py-1.5 rounded-md border bg-background text-xs focus:outline-none focus:ring-1 ${row.sku.trim() && !isSkuValid(row.sku) ? 'border-destructive focus:ring-destructive/30 focus:border-destructive' : 'border-border focus:ring-primary/30 focus:border-primary'}`} />
+                                            {row.sku.trim() && (
+                                                <span className={`absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold px-1 py-0.5 rounded ${isSkuValid(row.sku) ? (getWarehouseNameBySku(row.sku) === 'Мужской' ? 'bg-blue-500/15 text-blue-600' : 'bg-pink-500/15 text-pink-600') : 'bg-destructive/15 text-destructive'}`}>
+                                                    {isSkuValid(row.sku) ? getWarehouseNameBySku(row.sku) === 'Мужской' ? 'М' : 'Ж' : '!'}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <input value={row.sizeRange} onChange={(e) => updateRow(row.id, 'sizeRange', e.target.value)} placeholder="Размер. ряд" className="px-2.5 py-1.5 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary" />
-                                    <input value={row.barcode} onChange={(e) => updateRow(row.id, 'barcode', e.target.value)} placeholder="Баркод" className="px-2.5 py-1.5 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary" />
+                                    <div>
+                                        <label className="text-[10px] text-muted-foreground block mb-0.5">Разм. ряд</label>
+                                        <input value={row.sizeRange} onChange={(e) => updateRow(row.id, 'sizeRange', e.target.value)} placeholder="36-41" className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-muted-foreground block mb-0.5">Баркод</label>
+                                        <input value={row.barcode} onChange={(e) => updateRow(row.id, 'barcode', e.target.value)} placeholder="—" className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary" />
+                                    </div>
                                 </div>
 
                                 {/* Photos inline */}
@@ -561,10 +618,16 @@ export default function ReceiptPage() {
                                             </button>
                                         </div>
                                     ) : (
-                                        <label className="w-10 h-10 rounded border border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/50 flex-shrink-0">
-                                            <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                                            <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(row.id, 'photoOriginalFile', f); }} />
-                                        </label>
+                                        <div className="flex gap-1 flex-shrink-0">
+                                            <label className="w-10 h-10 rounded border border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/50">
+                                                <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(row.id, 'photoOriginalFile', f); }} />
+                                            </label>
+                                            <label className="w-10 h-10 rounded border border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/50">
+                                                <Camera className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(row.id, 'photoOriginalFile', f); }} />
+                                            </label>
+                                        </div>
                                     )}
                                     {row.photoPreview ? (
                                         <div className="relative w-10 h-10 rounded overflow-hidden border border-border flex-shrink-0">
@@ -574,16 +637,34 @@ export default function ReceiptPage() {
                                             </button>
                                         </div>
                                     ) : (
-                                        <label className="w-10 h-10 rounded border border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/50 flex-shrink-0">
-                                            <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-                                            <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(row.id, 'photoFile', f); }} />
-                                        </label>
+                                        <div className="flex gap-1 flex-shrink-0">
+                                            <label className="w-10 h-10 rounded border border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/50">
+                                                <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(row.id, 'photoFile', f); }} />
+                                            </label>
+                                            <label className="w-10 h-10 rounded border border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/50">
+                                                <Camera className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(row.id, 'photoFile', f); }} />
+                                            </label>
+                                        </div>
                                     )}
                                     <div className="flex-1 grid grid-cols-4 gap-1.5">
-                                        <input type="number" min="0" value={row.boxCount || ''} onChange={(e) => updateRow(row.id, 'boxCount', parseInt(e.target.value) || 0)} placeholder="Кор" className="px-2 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30" />
-                                        <input type="number" min="0" value={row.pairCount || ''} onChange={(e) => updateRow(row.id, 'pairCount', parseInt(e.target.value) || 0)} placeholder="Пар" className="px-2 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30" />
-                                        <input type="number" min="0" step="0.01" value={row.priceYuan || ''} onChange={(e) => updateRow(row.id, 'priceYuan', parseFloat(e.target.value) || 0)} placeholder="¥" className="px-2 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30" />
-                                        <input type="number" min="0" step="0.01" value={row.priceRub || ''} onChange={(e) => updateRow(row.id, 'priceRub', parseFloat(e.target.value) || 0)} placeholder="₽" className="px-2 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                                        <div>
+                                            <label className="text-[9px] text-muted-foreground block mb-0.5 text-center">Коробок</label>
+                                            <input type="text" inputMode="numeric" value={row.boxCount || ''} onChange={(e) => updateRow(row.id, 'boxCount', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)} placeholder="0" className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] text-muted-foreground block mb-0.5 text-center">Пар</label>
+                                            <input type="text" inputMode="numeric" value={row.pairCount || ''} onChange={(e) => updateRow(row.id, 'pairCount', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)} placeholder="0" className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] text-muted-foreground block mb-0.5 text-center">Цена ¥</label>
+                                            <input type="text" inputMode="decimal" value={row.priceYuan || ''} onChange={(e) => updateRow(row.id, 'priceYuan', parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0)} placeholder="0" className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] text-muted-foreground block mb-0.5 text-center">Цена ₽</label>
+                                            <input type="text" inputMode="decimal" value={row.priceRub || ''} onChange={(e) => updateRow(row.id, 'priceRub', parseFloat(e.target.value.replace(/[^0-9.]/g, '')) || 0)} placeholder="0" className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                                        </div>
                                     </div>
                                 </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -13,20 +13,37 @@ import {
     MapPin,
     Package,
     SendHorizontal,
+    Store,
+    Users2,
+    Banknote,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import { useSettingsStore } from '@/stores/settings-store';
+import { warehouseApi, authApi } from '@/lib/api';
 
 export function BottomNav() {
     const pathname = usePathname();
     const t = useTranslations('dashboard');
-    const { user } = useAuthStore();
+    const { user, setUser } = useAuthStore();
     const { settings, fetchSettings } = useSettingsStore();
+    const [hasShop, setHasShop] = useState(false);
+    const [hasWarehouse, setHasWarehouse] = useState(false);
 
     useEffect(() => {
         if (!settings) fetchSettings();
+        // Refresh user data to get latest permissions
+        authApi.getMe().then(setUser).catch(() => {});
     }, []);
+
+    useEffect(() => {
+        if (user) {
+            warehouseApi.getAll().then(warehouses => {
+                setHasShop(warehouses.some(w => w.type === 'SHOP'));
+                setHasWarehouse(warehouses.some(w => w.type === 'WAREHOUSE'));
+            }).catch(() => {});
+        }
+    }, [user]);
 
     const menuItems = [
         {
@@ -53,6 +70,22 @@ export function BottomNav() {
             href: '/dashboard/receipt',
         },
         {
+            icon: Store,
+            label: 'Магазин',
+            href: '/dashboard/shop',
+        },
+        {
+            icon: Users2,
+            label: 'Контрагенты',
+            href: '/dashboard/counterparties',
+            roles: ['ORGANIZER'],
+        },
+        {
+            icon: Banknote,
+            label: 'Касса',
+            href: '/dashboard/cash-register',
+        },
+        {
             icon: SendHorizontal,
             label: 'Заявки',
             href: '/dashboard/shipments',
@@ -71,13 +104,38 @@ export function BottomNav() {
     ];
 
     const filteredItems = menuItems.filter(item => {
+        const isPointAdmin = user?.role === 'POINT_ADMIN';
+
         if (!item.roles) {
             // Hide Приход for POINT_ADMIN when canAddProducts is false
-            if (item.href === '/dashboard/receipt' && user?.role === 'POINT_ADMIN' && settings && !settings.canAddProducts) {
+            if (item.href === '/dashboard/receipt' && isPointAdmin && !user?.canAddProducts) {
+                return false;
+            }
+            // Hide Магазин if no shop warehouses
+            if (item.href === '/dashboard/shop' && !hasShop) {
+                return false;
+            }
+            // Hide Касса if no shop warehouses
+            if (item.href === '/dashboard/cash-register' && !hasShop) {
                 return false;
             }
             return true;
         }
+
+        // Role-gated items
+        if (item.href === '/dashboard/counterparties') {
+            // ORGANIZER always sees it; POINT_ADMIN sees it only with canManageCounterparties
+            if (user?.role === 'ORGANIZER') return true;
+            if (isPointAdmin && user?.canManageCounterparties) return true;
+            return false;
+        }
+
+        if (item.href === '/dashboard/warehouses') {
+            // Only show Склады for POINT_ADMIN if they have non-shop warehouses
+            if (isPointAdmin && !hasWarehouse) return false;
+            return user?.role && item.roles.includes(user.role);
+        }
+
         return user?.role && item.roles.includes(user.role);
     });
 

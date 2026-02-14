@@ -512,14 +512,24 @@ export default function CreateShipmentPage() {
                                     </button>
                                 </div>
                             ) : (
-                                <label className="flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-border hover:border-primary/30 cursor-pointer transition-colors">
-                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">Нажмите для загрузки</span>
-                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                                        const f = e.target.files?.[0];
-                                        if (f) handlePhotoUpload('waybill', f);
-                                    }} />
-                                </label>
+                                <div className="flex gap-2">
+                                    <label className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/30 cursor-pointer transition-colors">
+                                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">Галерея</span>
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) handlePhotoUpload('waybill', f);
+                                        }} />
+                                    </label>
+                                    <label className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/30 cursor-pointer transition-colors">
+                                        <Camera className="h-6 w-6 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">Камера</span>
+                                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) handlePhotoUpload('waybill', f);
+                                        }} />
+                                    </label>
+                                </div>
                             )}
                         </div>
                         {/* Transport Photo */}
@@ -536,14 +546,24 @@ export default function CreateShipmentPage() {
                                     </button>
                                 </div>
                             ) : (
-                                <label className="flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-border hover:border-primary/30 cursor-pointer transition-colors">
-                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">Нажмите для загрузки</span>
-                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                                        const f = e.target.files?.[0];
-                                        if (f) handlePhotoUpload('transport', f);
-                                    }} />
-                                </label>
+                                <div className="flex gap-2">
+                                    <label className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/30 cursor-pointer transition-colors">
+                                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">Галерея</span>
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) handlePhotoUpload('transport', f);
+                                        }} />
+                                    </label>
+                                    <label className="flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/30 cursor-pointer transition-colors">
+                                        <Camera className="h-6 w-6 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground">Камера</span>
+                                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) handlePhotoUpload('transport', f);
+                                        }} />
+                                    </label>
+                                </div>
                             )}
                         </div>
                     </div>

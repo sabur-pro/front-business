@@ -20,6 +20,8 @@ import {
     Package,
     SendHorizontal,
     PackageCheck,
+    Store,
+    Users2,
 } from 'lucide-react';
 import { Button, Card, Input } from '@/components/ui';
 import { employeeApi, organizationApi, settingsApi, EmployeeResponse, PointResponse } from '@/lib/api';
@@ -334,6 +336,12 @@ export default function EmployeesPage() {
                                             <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
                                                 <PackageCheck className="h-2.5 w-2.5" />
                                                 Приёмка
+                                            </span>
+                                        )}
+                                        {employee.canSell && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                                                <Store className="h-2.5 w-2.5" />
+                                                Продажи
                                             </span>
                                         )}
                                     </div>
@@ -655,11 +663,52 @@ export default function EmployeesPage() {
                                         </button>
                                     </div>
 
-                                    {/* canAddProducts toggle (org-level) */}
+                                    {/* canSell toggle */}
                                     <div className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/30">
                                         <div className="flex items-center gap-3">
                                             <div className="p-2 rounded-lg bg-purple-500/10">
-                                                <Package className="h-4 w-4 text-purple-500" />
+                                                <Store className="h-4 w-4 text-purple-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">Продажи</p>
+                                                <p className="text-xs text-muted-foreground">Разрешить продавать товары в магазине</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                setIsTogglingPermission(true);
+                                                try {
+                                                    const updated = await employeeApi.updatePermissions(detailEmployee.id, {
+                                                        canSell: !detailEmployee.canSell,
+                                                    });
+                                                    setDetailEmployee(updated);
+                                                    setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
+                                                } catch (err: any) {
+                                                    setError(err.response?.data?.message || 'Ошибка обновления разрешения');
+                                                } finally {
+                                                    setIsTogglingPermission(false);
+                                                }
+                                            }}
+                                            disabled={isTogglingPermission}
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                                                detailEmployee.canSell
+                                                    ? 'bg-green-500'
+                                                    : 'bg-gray-300 dark:bg-gray-600'
+                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                        >
+                                            <span
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                                                    detailEmployee.canSell ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
+
+                                    {/* canAddProducts toggle (per-user) */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-blue-500/10">
+                                                <Package className="h-4 w-4 text-blue-500" />
                                             </div>
                                             <div>
                                                 <p className="text-sm font-medium">Добавление товаров</p>
@@ -670,9 +719,11 @@ export default function EmployeesPage() {
                                             onClick={async () => {
                                                 setIsTogglingPermission(true);
                                                 try {
-                                                    const newValue = !settings?.canAddProducts;
-                                                    await settingsApi.update({ canAddProducts: newValue });
-                                                    await fetchSettings();
+                                                    const updated = await employeeApi.updatePermissions(detailEmployee.id, {
+                                                        canAddProducts: !detailEmployee.canAddProducts,
+                                                    });
+                                                    setDetailEmployee(updated);
+                                                    setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
                                                 } catch (err: any) {
                                                     setError(err.response?.data?.message || 'Ошибка обновления разрешения');
                                                 } finally {
@@ -681,14 +732,55 @@ export default function EmployeesPage() {
                                             }}
                                             disabled={isTogglingPermission}
                                             className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                                                settings?.canAddProducts
+                                                detailEmployee.canAddProducts
                                                     ? 'bg-green-500'
                                                     : 'bg-gray-300 dark:bg-gray-600'
                                             } ${isTogglingPermission ? 'opacity-50' : ''}`}
                                         >
                                             <span
                                                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                                                    settings?.canAddProducts ? 'translate-x-5' : 'translate-x-0'
+                                                    detailEmployee.canAddProducts ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
+
+                                    {/* canManageCounterparties toggle (per-user) */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-teal-500/10">
+                                                <Users2 className="h-4 w-4 text-teal-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">Контрагенты</p>
+                                                <p className="text-xs text-muted-foreground">Разрешить управлять поставщиками и клиентами</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                setIsTogglingPermission(true);
+                                                try {
+                                                    const updated = await employeeApi.updatePermissions(detailEmployee.id, {
+                                                        canManageCounterparties: !detailEmployee.canManageCounterparties,
+                                                    });
+                                                    setDetailEmployee(updated);
+                                                    setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
+                                                } catch (err: any) {
+                                                    setError(err.response?.data?.message || 'Ошибка обновления разрешения');
+                                                } finally {
+                                                    setIsTogglingPermission(false);
+                                                }
+                                            }}
+                                            disabled={isTogglingPermission}
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                                                detailEmployee.canManageCounterparties
+                                                    ? 'bg-green-500'
+                                                    : 'bg-gray-300 dark:bg-gray-600'
+                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                        >
+                                            <span
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                                                    detailEmployee.canManageCounterparties ? 'translate-x-5' : 'translate-x-0'
                                                 }`}
                                             />
                                         </button>
