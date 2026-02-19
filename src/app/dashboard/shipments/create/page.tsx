@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -26,7 +26,9 @@ import {
     uploadApi,
     PointResponse,
     ProductResponse,
+    PaginatedProductsResponse,
 } from '@/lib/api';
+import { Search } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -48,10 +50,16 @@ export default function CreateShipmentPage() {
     const [selectedToPointId, setSelectedToPointId] = useState('');
 
     // Products
-    const [warehouseProducts, setWarehouseProducts] = useState<ProductResponse[]>([]);
+    const [availableProducts, setAvailableProducts] = useState<ProductResponse[]>([]);
     const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
     const [productSearch, setProductSearch] = useState('');
     const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+    const [productPage, setProductPage] = useState(1);
+    const [productTotalPages, setProductTotalPages] = useState(0);
+    const [productTotal, setProductTotal] = useState(0);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const PRODUCTS_PER_PAGE = 20;
 
     // Photos
     const [waybillPhotoFile, setWaybillPhotoFile] = useState<File | null>(null);
@@ -94,9 +102,11 @@ export default function CreateShipmentPage() {
     // When from-point changes: load account points and products
     useEffect(() => {
         setSelectedToPointId('');
-        setWarehouseProducts([]);
+        setAvailableProducts([]);
         setSelectedProducts([]);
         setAccountPoints([]);
+        setProductSearch('');
+        setProductPage(1);
 
         if (selectedFromPointId) {
             const senderPoint = senderPoints.find(p => p.id === selectedFromPointId);
@@ -109,21 +119,51 @@ export default function CreateShipmentPage() {
                     }
                 }).catch(err => console.error('Failed to load account points', err));
             }
-            loadProducts();
+            loadProducts(1, '');
         }
     }, [selectedFromPointId]);
 
-    const loadProducts = async () => {
+    const loadProducts = async (page: number, search: string, append = false) => {
         if (!selectedFromPointId) return;
-        setIsLoadingProducts(true);
+        if (append) {
+            setIsLoadingMore(true);
+        } else {
+            setIsLoadingProducts(true);
+        }
         try {
-            const res = await productApi.searchByPoint(selectedFromPointId, { page: 1, limit: 200 });
-            setWarehouseProducts(res.items.filter(p => p.boxCount > 0));
+            const res = await productApi.searchByPoint(selectedFromPointId, {
+                page,
+                limit: PRODUCTS_PER_PAGE,
+                search: search || undefined,
+            });
+            if (append) {
+                setAvailableProducts(prev => [...prev, ...res.items]);
+            } else {
+                setAvailableProducts(res.items);
+            }
+            setProductPage(res.page);
+            setProductTotalPages(res.totalPages);
+            setProductTotal(res.total);
         } catch (err) {
             console.error('Failed to load products', err);
         } finally {
             setIsLoadingProducts(false);
+            setIsLoadingMore(false);
         }
+    };
+
+    const handleProductSearchChange = (value: string) => {
+        setProductSearch(value);
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(() => {
+            setProductPage(1);
+            loadProducts(1, value);
+        }, 400);
+    };
+
+    const handleLoadMore = () => {
+        const nextPage = productPage + 1;
+        loadProducts(nextPage, productSearch, true);
     };
 
 
@@ -234,12 +274,6 @@ export default function CreateShipmentPage() {
     };
 
     const receiverPoints = accountPoints.filter(p => p.id !== selectedFromPointId);
-
-    const filteredProducts = warehouseProducts.filter(p => {
-        if (!productSearch) return true;
-        const q = productSearch.toLowerCase();
-        return p.sku.toLowerCase().includes(q) || (p.sizeRange || '').toLowerCase().includes(q);
-    });
 
     // Grand totals
     const grandTotalBoxes = selectedProducts.reduce((sum, sp) => sum + sp.boxCount, 0);
@@ -368,12 +402,18 @@ export default function CreateShipmentPage() {
 
                     {/* Search */}
                     <div className="mb-4">
-                        <input
-                            value={productSearch}
-                            onChange={(e) => setProductSearch(e.target.value)}
-                            placeholder="Поиск по артикулу или размерному ряду..."
-                            className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                        />
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <input
+                                value={productSearch}
+                                onChange={(e) => handleProductSearchChange(e.target.value)}
+                                placeholder="Поиск по артикулу, размерному ряду, баркоду..."
+                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                            />
+                        </div>
+                        {productTotal > 0 && (
+                            <p className="mt-1.5 text-xs text-muted-foreground">Найдено товаров: {productTotal}</p>
+                        )}
                     </div>
 
                     {/* Available products */}
@@ -385,22 +425,21 @@ export default function CreateShipmentPage() {
                                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                             />
                         </div>
-                    ) : filteredProducts.length === 0 ? (
+                    ) : availableProducts.length === 0 ? (
                         <div className="text-center py-6 text-sm text-muted-foreground">
-                            Нет товаров на складе
+                            {productSearch ? 'Ничего не найдено' : 'Нет товаров на складе'}
                         </div>
                     ) : (
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                            {filteredProducts.map(product => {
+                        <div className="space-y-2 max-h-80 overflow-y-auto">
+                            {availableProducts.map(product => {
                                 const isSelected = selectedProducts.some(sp => sp.product.id === product.id);
                                 return (
                                     <div
                                         key={product.id}
-                                        className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
-                                            isSelected
+                                        className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${isSelected
                                                 ? 'border-primary/50 bg-primary/5'
                                                 : 'border-border hover:border-primary/30 hover:bg-muted/30'
-                                        }`}
+                                            }`}
                                         onClick={() => !isSelected && addProduct(product)}
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
@@ -433,6 +472,18 @@ export default function CreateShipmentPage() {
                                     </div>
                                 );
                             })}
+                            {/* Load more button */}
+                            {productPage < productTotalPages && (
+                                <Button
+                                    variant="outline"
+                                    className="w-full mt-2"
+                                    size="sm"
+                                    isLoading={isLoadingMore}
+                                    onClick={handleLoadMore}
+                                >
+                                    Загрузить ещё ({productTotal - availableProducts.length} осталось)
+                                </Button>
+                            )}
                         </div>
                     )}
 

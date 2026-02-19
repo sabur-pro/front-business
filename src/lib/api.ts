@@ -173,7 +173,7 @@ export const warehouseApi = {
     create: async (data: CreateWarehouseData) => {
         const response = await api.post<WarehouseResponse>('/warehouses', data);
         return response.data;
-    },                                                                                                                                                          
+    },
 
     update: async (id: string, data: UpdateWarehouseData) => {
         const response = await api.put<WarehouseResponse>(`/warehouses/${id}`, data);
@@ -479,7 +479,23 @@ export const productApi = {
         const response = await api.delete<{ deleted: number }>('/products/batch', { data: { ids } });
         return response.data;
     },
+
+    getStats: async (): Promise<ProductStatsResponse> => {
+        const response = await api.get<ProductStatsResponse>('/products/stats');
+        return response.data;
+    },
+
+    searchAll: async (params: { page?: number; limit?: number; search?: string }): Promise<PaginatedProductsResponse> => {
+        const response = await api.get<PaginatedProductsResponse>('/products/search-all', { params });
+        return response.data;
+    },
 };
+
+export interface ProductStatsResponse {
+    uniqueProducts: number;
+    totalBoxes: number;
+    totalPairs: number;
+}
 
 export interface PaginatedProductsResponse {
     items: ProductResponse[];

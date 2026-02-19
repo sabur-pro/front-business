@@ -21,7 +21,7 @@ import {
 import { Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/stores';
 import { useSettingsStore } from '@/stores/settings-store';
-import { warehouseApi, organizationApi, productApi, WarehouseResponse, PointResponse } from '@/lib/api';
+import { warehouseApi, organizationApi, productApi, WarehouseResponse, PointResponse, ProductStatsResponse } from '@/lib/api';
 
 export default function DashboardPage() {
     const t = useTranslations('dashboard');
@@ -32,6 +32,7 @@ export default function DashboardPage() {
     const [warehouses, setWarehouses] = useState<WarehouseResponse[]>([]);
     const [points, setPoints] = useState<PointResponse[]>([]);
     const [totalProducts, setTotalProducts] = useState<number>(0);
+    const [productStats, setProductStats] = useState<ProductStatsResponse | null>(null);
     const [isLoadingData, setIsLoadingData] = useState(false);
     const { settings, fetchSettings } = useSettingsStore();
 
@@ -51,22 +52,17 @@ export default function DashboardPage() {
     const loadData = async () => {
         setIsLoadingData(true);
         try {
-            const [warehousesData, pointsData] = await Promise.all([
+            const [warehousesData, pointsData, stats] = await Promise.all([
                 warehouseApi.getAll(),
                 organizationApi.getPoints(),
+                productApi.getStats().catch(() => null),
             ]);
             setWarehouses(warehousesData);
             setPoints(pointsData);
-
-            // Fetch total product count across all warehouses
-            try {
-                let totalProd = 0;
-                for (const wh of warehousesData) {
-                    const res = await productApi.searchByWarehouse(wh.id, { page: 1, limit: 1 });
-                    totalProd += res.total;
-                }
-                setTotalProducts(totalProd);
-            } catch { /* ignore */ }
+            if (stats) {
+                setProductStats(stats);
+                setTotalProducts(stats.uniqueProducts);
+            }
         } catch (error) {
             console.error('Failed to load data', error);
         } finally {
@@ -118,6 +114,7 @@ export default function DashboardPage() {
                     points={points}
                     warehouses={warehouses}
                     totalProducts={totalProducts}
+                    productStats={productStats}
                     router={router}
                     t={t}
                     tWarehouses={tWarehouses}
@@ -139,6 +136,7 @@ function OrganizerDashboard({
     points,
     warehouses,
     totalProducts,
+    productStats,
     router,
     t,
     tWarehouses,
@@ -146,6 +144,7 @@ function OrganizerDashboard({
     points: PointResponse[];
     warehouses: WarehouseResponse[];
     totalProducts: number;
+    productStats: ProductStatsResponse | null;
     router: ReturnType<typeof useRouter>;
     t: any;
     tWarehouses: any;
@@ -154,7 +153,9 @@ function OrganizerDashboard({
         { label: t('stats.totalWarehouses'), value: String(warehouses.filter(w => w.type !== 'SHOP').length), icon: Warehouse, color: 'bg-green-500/10 text-green-500' },
         { label: 'Магазинов', value: String(warehouses.filter(w => w.type === 'SHOP').length), icon: Store, color: 'bg-purple-500/10 text-purple-500' },
         { label: 'Точек', value: String(points.length), icon: MapPin, color: 'bg-blue-500/10 text-blue-500' },
-        { label: t('stats.totalProducts'), value: String(totalProducts), icon: Package, color: 'bg-orange-500/10 text-orange-500' },
+        { label: 'Уникальные товары', value: String(productStats?.uniqueProducts ?? totalProducts), icon: Package, color: 'bg-orange-500/10 text-orange-500' },
+        { label: 'Всего коробок', value: String(productStats?.totalBoxes ?? 0), icon: Package, color: 'bg-amber-500/10 text-amber-500' },
+        { label: 'Всего пар', value: String(productStats?.totalPairs ?? 0), icon: TrendingUp, color: 'bg-pink-500/10 text-pink-500' },
     ];
 
     const hasShops = warehouses.some(w => w.type === 'SHOP');
@@ -162,7 +163,7 @@ function OrganizerDashboard({
     return (
         <>
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 {stats.map((stat, index) => (
                     <motion.div
                         key={index}

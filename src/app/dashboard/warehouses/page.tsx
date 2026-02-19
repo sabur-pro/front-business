@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
@@ -19,7 +19,7 @@ import {
 import { Card, Input, Button } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import { useSettingsStore } from '@/stores/settings-store';
-import { warehouseApi, organizationApi, WarehouseResponse, PointResponse } from '@/lib/api';
+import { warehouseApi, organizationApi, productApi, WarehouseResponse, PointResponse } from '@/lib/api';
 
 const warehouseSchema = z.object({
     name: z.string().min(1, 'Название обязательно'),
@@ -44,6 +44,9 @@ export default function WarehousesPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [matchingWarehouseIds, setMatchingWarehouseIds] = useState<Set<string> | null>(null);
+    const [isSearchingProducts, setIsSearchingProducts] = useState(false);
+    const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const {
         register,
@@ -94,11 +97,36 @@ export default function WarehousesPage() {
         }
     };
 
-    const filteredWarehouses = warehouses.filter(wh =>
-        wh.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (wh.address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        getPointName(wh.pointId).toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        if (!value.trim()) {
+            setMatchingWarehouseIds(null);
+            return;
+        }
+        searchTimerRef.current = setTimeout(async () => {
+            setIsSearchingProducts(true);
+            try {
+                const res = await productApi.searchAll({ search: value, page: 1, limit: 100 });
+                const whIds = new Set(res.items.map(p => p.warehouseId).filter(Boolean) as string[]);
+                setMatchingWarehouseIds(whIds);
+            } catch {
+                setMatchingWarehouseIds(null);
+            } finally {
+                setIsSearchingProducts(false);
+            }
+        }, 400);
+    };
+
+    const filteredWarehouses = warehouses.filter(wh => {
+        const q = searchQuery.toLowerCase();
+        const matchesBasic = !q ||
+            wh.name.toLowerCase().includes(q) ||
+            (wh.address || '').toLowerCase().includes(q) ||
+            getPointName(wh.pointId).toLowerCase().includes(q);
+        const matchesProduct = matchingWarehouseIds?.has(wh.id) || false;
+        return matchesBasic || matchesProduct;
+    });
 
     return (
         <div className="space-y-6">
@@ -122,10 +150,10 @@ export default function WarehousesPage() {
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Поиск по названию, адресу или точке..."
+                        placeholder="Поиск по названию, адресу, точке или товару..."
                         className="pl-10"
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => handleSearchChange(e.target.value)}
                     />
                 </div>
             </Card>
