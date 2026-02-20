@@ -4,16 +4,16 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=https://api-business.medlife.tj
+        - NEXT_PUBLIC_API_URL=https://api.retailio.ru
     container_name: mybusiness-front
     restart: unless-stopped
     expose:
       - "3005"
     environment:
-      - VIRTUAL_HOST=business.medlife.tj
+      - VIRTUAL_HOST=retailio.ru
       - VIRTUAL_PORT=3005
-      - LETSENCRYPT_HOST=business.medlife.tj
-      - LETSENCRYPT_EMAIL=afprojects052000@gmail.com
+      - LETSENCRYPT_HOST=retailio.ru
+      - LETSENCRYPT_EMAIL=meoutic@gmail.com
       - NODE_ENV=production
     networks:
       - proxy-network
