@@ -43,7 +43,7 @@
         }
     },
     "welcome": {
-        "title": "Warehouse Management",
+        "title": "Chor Barodaron System. Smart Management",
         "subtitle": "Modern inventory, transfers, and finance tracking system",
         "features": {
             "warehouses": "Unlimited warehouses",
@@ -52,6 +52,7 @@
             "reports": "Analytics and reports"
         },
         "getStarted": "Get Started",
+        "loginStart": "Login / Get Started",
         "learnMore": "Learn More"
     },
     "dashboard": {

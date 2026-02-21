@@ -25,7 +25,7 @@ export default function LoginPage() {
                             <div className="p-2 rounded-xl bg-primary/10">
                                 <Warehouse className="h-5 w-5 text-primary" />
                             </div>
-                            <span className="font-bold text-lg hidden sm:block">Warehouse</span>
+                            <span className="font-bold text-lg hidden sm:block">4-Бародарон</span>
                         </motion.div>
                     </Link>
 

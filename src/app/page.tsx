@@ -9,8 +9,7 @@ import {
   Package,
   TrendingUp,
   CreditCard,
-  BarChart3,
-  Sparkles
+  BarChart3
 } from 'lucide-react';
 import { Button, ThemeToggle, LanguageToggle } from '@/components/ui';
 import { useAuthStore } from '@/stores';
@@ -18,7 +17,6 @@ import { useEffect, useState } from 'react';
 
 export default function WelcomePage() {
   const t = useTranslations('welcome');
-  const tAuth = useTranslations('auth');
   const { isAuthenticated, isLoading } = useAuthStore();
   const [mounted, setMounted] = useState(false);
 
@@ -62,7 +60,7 @@ export default function WelcomePage() {
             <div className="p-2 rounded-xl bg-primary/10">
               <Warehouse className="h-6 w-6 text-primary" />
             </div>
-            <span className="font-bold text-xl hidden sm:block">Warehouse</span>
+            <span className="font-bold text-xl hidden sm:block">4-Бародарон</span>
           </motion.div>
 
           <motion.div
@@ -74,15 +72,9 @@ export default function WelcomePage() {
             <LanguageToggle />
             <ThemeToggle />
             {!isLoading && (
-              isAuthenticated ? (
-                <Link href="/dashboard">
-                  <Button size="sm">{t('getStarted')}</Button>
-                </Link>
-              ) : (
-                <Link href="/login">
-                  <Button size="sm">{tAuth('login')}</Button>
-                </Link>
-              )
+              <Link href={isAuthenticated ? '/dashboard' : '/login'}>
+                <Button size="sm">{isAuthenticated ? t('getStarted') : t('loginStart')}</Button>
+              </Link>
             )}
           </motion.div>
         </div>
@@ -96,14 +88,7 @@ export default function WelcomePage() {
           initial="hidden"
           animate="visible"
         >
-          {/* Badge */}
-          <motion.div
-            variants={itemVariants}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-8"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>Новая версия 2.0</span>
-          </motion.div>
+
 
           {/* Title */}
           <motion.h1
@@ -121,20 +106,17 @@ export default function WelcomePage() {
             {t('subtitle')}
           </motion.p>
 
-          {/* CTA Buttons */}
+          {/* CTA Button */}
           <motion.div
             variants={itemVariants}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20"
+            className="flex items-center justify-center mb-20"
           >
-            <Link href={isAuthenticated ? '/dashboard' : '/register'}>
+            <Link href={isAuthenticated ? '/dashboard' : '/login'}>
               <Button size="lg" className="group">
-                {t('getStarted')}
+                {isAuthenticated ? t('getStarted') : t('loginStart')}
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            <Button variant="outline" size="lg">
-              {t('learnMore')}
-            </Button>
           </motion.div>
 
           {/* Features Grid */}

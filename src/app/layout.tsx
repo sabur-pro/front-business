@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Warehouse Management | Управление складами',
+  title: '4-Бародарон | Система Чор Бародарон',
   description: 'Modern warehouse management system | Современная система управления складами',
 };
 
