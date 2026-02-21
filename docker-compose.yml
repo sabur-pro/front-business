@@ -4,15 +4,15 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=https://api.retailio.ru
+        - NEXT_PUBLIC_API_URL=https://api.four-brothers.ru
     container_name: mybusiness-front
     restart: unless-stopped
     expose:
       - "3005"
     environment:
-      - VIRTUAL_HOST=retailio.ru
+      - VIRTUAL_HOST=four-brothers.ru
       - VIRTUAL_PORT=3005
-      - LETSENCRYPT_HOST=retailio.ru
+      - LETSENCRYPT_HOST=four-brothers.ru
       - LETSENCRYPT_EMAIL=meoutic@gmail.com
       - NODE_ENV=production
     networks:

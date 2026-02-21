@@ -57,10 +57,11 @@ export default function ShopPage() {
 
     // Client & payment
     const [clientId, setClientId] = useState<string | null>(null);
-    const [paidAmount, setPaidAmount] = useState<number | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
+    const [cashAmount, setCashAmount] = useState<number>(0);
+    const [cardAmount, setCardAmount] = useState<number>(0);
 
     const isOrganizer = user?.role === 'ORGANIZER';
+    const totalPaid = cashAmount + cardAmount;
 
     useEffect(() => {
         loadShops();
@@ -92,6 +93,8 @@ export default function ShopPage() {
         setCart([]);
         setSaleCreated(null);
         setSearchQuery('');
+        setCashAmount(0);
+        setCardAmount(0);
         setIsLoadingProducts(true);
         try {
             const prods = await productApi.searchByWarehouse(shop.id, { page: 1, limit: 500 });
@@ -120,11 +123,13 @@ export default function ShopPage() {
         });
     }, [products, cart, searchQuery]);
 
+    const PAIRS_PER_BOX = 8;
+
     const addToCart = (product: ProductResponse) => {
         setCart(prev => [...prev, {
             product,
             boxCount: product.boxCount,
-            pairCount: product.pairCount,
+            pairCount: product.boxCount * PAIRS_PER_BOX,
             actualSalePrice: product.recommendedSalePrice || 0,
         }]);
         setSearchQuery('');
@@ -137,6 +142,9 @@ export default function ShopPage() {
     const updateCartItem = (index: number, field: keyof CartItem, value: number) => {
         setCart(prev => prev.map((item, i) => {
             if (i !== index) return item;
+            if (field === 'boxCount') {
+                return { ...item, boxCount: value, pairCount: value * PAIRS_PER_BOX };
+            }
             return { ...item, [field]: value };
         }));
     };
@@ -158,8 +166,14 @@ export default function ShopPage() {
         };
     }, [cart]);
 
+    const hasDebtWithoutClient = totalPaid < totals.totalActual && totals.totalActual > 0 && !clientId;
+
     const onSubmitSale = async () => {
         if (cart.length === 0 || !selectedShop) return;
+        if (hasDebtWithoutClient) {
+            setError('Выберите клиента для оформления долга');
+            return;
+        }
         setIsSubmitting(true);
         setError(null);
         try {
@@ -167,8 +181,8 @@ export default function ShopPage() {
                 shopId: selectedShop.id,
                 note: note || undefined,
                 clientId: clientId || undefined,
-                paidAmount: clientId && paidAmount !== null ? paidAmount : undefined,
-                paymentMethod,
+                cashAmount,
+                cardAmount,
                 items: cart.map(item => ({
                     productId: item.product.id,
                     boxCount: item.boxCount,
@@ -180,8 +194,8 @@ export default function ShopPage() {
             setCart([]);
             setNote('');
             setClientId(null);
-            setPaidAmount(null);
-            setPaymentMethod('CASH');
+            setCashAmount(0);
+            setCardAmount(0);
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'Ошибка создания продажи');
         } finally {
@@ -261,11 +275,10 @@ export default function ShopPage() {
                             <button
                                 key={shop.id}
                                 onClick={() => selectShop(shop)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                                    selectedShop?.id === shop.id
-                                        ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30'
-                                        : 'bg-muted/50 text-muted-foreground hover:bg-muted border border-transparent'
-                                }`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${selectedShop?.id === shop.id
+                                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30'
+                                    : 'bg-muted/50 text-muted-foreground hover:bg-muted border border-transparent'
+                                    }`}
                             >
                                 <Store className="h-3.5 w-3.5" />
                                 {shop.name}
@@ -402,7 +415,7 @@ export default function ShopPage() {
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                         </button>
                                                     </div>
-                                                    <div className="grid grid-cols-3 gap-2">
+                                                    <div className="grid grid-cols-2 gap-2">
                                                         <div>
                                                             <label className="text-[10px] text-muted-foreground block mb-0.5">Коробок</label>
                                                             <input
@@ -414,36 +427,115 @@ export default function ShopPage() {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="text-[10px] text-muted-foreground block mb-0.5">Пар</label>
-                                                            <input
-                                                                type="text"
-                                                                inputMode="numeric"
-                                                                value={item.pairCount}
-                                                                onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); updateCartItem(index, 'pairCount', Math.min(Number(v) || 0, item.product.pairCount)); }}
-                                                                className="w-full rounded-lg border border-border/50 bg-card/80 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] text-muted-foreground block mb-0.5">Цена продажи ₽</label>
-                                                            <input
-                                                                type="text"
-                                                                inputMode="decimal"
-                                                                value={item.actualSalePrice}
-                                                                onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); updateCartItem(index, 'actualSalePrice', Number(v) || 0); }}
-                                                                className="w-full rounded-lg border border-border/50 bg-card/80 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                                            />
+                                                            <label className="text-[10px] text-muted-foreground block mb-0.5">Пар (авто)</label>
+                                                            <div className="w-full rounded-lg border border-border/30 bg-muted/30 px-2 py-1.5 text-sm text-muted-foreground">
+                                                                {item.pairCount}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground">
-                                                        <span>Рек: {item.product.recommendedSalePrice}₽/пара</span>
-                                                        <span className="font-medium text-foreground">
-                                                            = {(item.actualSalePrice * item.pairCount).toLocaleString('ru-RU')}₽
+                                                    <div className="mt-2">
+                                                        <div className="flex items-center justify-between mb-0.5">
+                                                            <label className="text-[10px] font-semibold text-primary block">Факт. цена за пару ₽</label>
+                                                            <span className="text-[10px] text-muted-foreground">Рек: {item.product.recommendedSalePrice?.toLocaleString('ru-RU')}₽</span>
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            value={item.actualSalePrice}
+                                                            onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); updateCartItem(index, 'actualSalePrice', Number(v) || 0); }}
+                                                            className="w-full rounded-lg border-2 border-primary/30 bg-primary/5 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center justify-end mt-1 text-xs">
+                                                        <span className="font-semibold text-foreground">
+                                                            Итого: {(item.actualSalePrice * item.pairCount).toLocaleString('ru-RU')}₽
                                                         </span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </Card>
                                     ))}
+
+                                    {/* Payment — split (cash + card) */}
+                                    <Card className="p-3 space-y-3">
+                                        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground block">Оплата</label>
+
+                                        {/* Quick fill buttons */}
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => { setCashAmount(totals.totalActual); setCardAmount(0); }}
+                                                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all border ${cashAmount === totals.totalActual && cardAmount === 0
+                                                    ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30'
+                                                    : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
+                                                    }`}
+                                            >
+                                                <Banknote className="h-3.5 w-3.5" />
+                                                Всё наличными
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setCardAmount(totals.totalActual); setCashAmount(0); }}
+                                                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all border ${cardAmount === totals.totalActual && cashAmount === 0
+                                                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                                                    : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
+                                                    }`}
+                                            >
+                                                <CreditCard className="h-3.5 w-3.5" />
+                                                Всё картой
+                                            </button>
+                                        </div>
+
+                                        {/* Cash + Card inputs */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground block mb-0.5 flex items-center gap-1">
+                                                    <Banknote className="h-3 w-3" /> Наличными ₽
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={cashAmount || ''}
+                                                    onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setCashAmount(Number(v) || 0); }}
+                                                    className="w-full rounded-lg border border-border/50 bg-card/80 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground block mb-0.5 flex items-center gap-1">
+                                                    <CreditCard className="h-3 w-3" /> Картой ₽
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={cardAmount || ''}
+                                                    onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setCardAmount(Number(v) || 0); }}
+                                                    className="w-full rounded-lg border border-border/50 bg-card/80 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Payment summary */}
+                                        <div className="flex justify-between text-sm pt-1 border-t border-border/30">
+                                            <span className="text-muted-foreground">Оплачено</span>
+                                            <span className={`font-medium ${totalPaid >= totals.totalActual ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}`}>
+                                                {totalPaid.toLocaleString('ru-RU')} ₽
+                                            </span>
+                                        </div>
+
+                                        {/* Debt indicator */}
+                                        {totalPaid < totals.totalActual && totals.totalActual > 0 && (
+                                            <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 text-xs font-medium">
+                                                Долг: {(totals.totalActual - totalPaid).toLocaleString('ru-RU')} ₽
+                                                {!clientId && (
+                                                    <span className="block mt-0.5 text-[10px] opacity-70">
+                                                        Выберите клиента ниже для оформления долга
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </Card>
 
                                     {/* Client selection */}
                                     {user?.accountId && (user?.role === 'ORGANIZER' || user?.canManageCounterparties) && (
@@ -453,62 +545,12 @@ export default function ShopPage() {
                                                 accountId={user.accountId}
                                                 type="CLIENT"
                                                 value={clientId}
-                                                onChange={(id) => {
-                                                    setClientId(id);
-                                                    if (!id) setPaidAmount(null);
-                                                    else setPaidAmount(totals.totalActual);
-                                                }}
+                                                onChange={(id) => setClientId(id)}
                                                 showBalance
                                                 allowCreate
                                             />
-                                            {clientId && (
-                                                <div className="space-y-1.5 pt-1">
-                                                    <label className="text-xs font-medium block">Сумма оплаты</label>
-                                                    <input
-                                                        type="text"
-                                                        inputMode="decimal"
-                                                        value={paidAmount ?? ''}
-                                                        onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); setPaidAmount(v ? Number(v) : null); }}
-                                                        className="w-full rounded-xl border border-border/50 bg-card/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                                    />
-                                                    {paidAmount !== null && paidAmount < totals.totalActual && (
-                                                        <p className="text-xs text-orange-500 font-medium">
-                                                            Долг клиента: {(totals.totalActual - paidAmount).toLocaleString('ru-RU')} ₽
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            )}
                                         </Card>
                                     )}
-
-                                    {/* Payment method */}
-                                    <Card className="p-3">
-                                        <label className="text-xs font-medium block mb-2">Тип оплаты</label>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => setPaymentMethod('CASH')}
-                                                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                                                    paymentMethod === 'CASH'
-                                                        ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30'
-                                                        : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
-                                                }`}
-                                            >
-                                                <Banknote className="h-4 w-4" />
-                                                Наличные
-                                            </button>
-                                            <button
-                                                onClick={() => setPaymentMethod('CARD')}
-                                                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                                                    paymentMethod === 'CARD'
-                                                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
-                                                        : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted'
-                                                }`}
-                                            >
-                                                <CreditCard className="h-4 w-4" />
-                                                Карта
-                                            </button>
-                                        </div>
-                                    </Card>
 
                                     {/* Note */}
                                     <Card className="p-3">
@@ -544,6 +586,18 @@ export default function ShopPage() {
                                                 <span>Итого к оплате</span>
                                                 <span className="text-primary">{totals.totalActual.toLocaleString('ru-RU')} ₽</span>
                                             </div>
+                                            {totalPaid > 0 && (
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground">Оплачено ({cashAmount > 0 ? `${cashAmount.toLocaleString('ru-RU')}₽ нал` : ''}{cashAmount > 0 && cardAmount > 0 ? ' + ' : ''}{cardAmount > 0 ? `${cardAmount.toLocaleString('ru-RU')}₽ карта` : ''})</span>
+                                                    <span className="font-medium">{totalPaid.toLocaleString('ru-RU')} ₽</span>
+                                                </div>
+                                            )}
+                                            {totalPaid < totals.totalActual && totals.totalActual > 0 && (
+                                                <div className="flex justify-between text-sm font-semibold text-orange-500">
+                                                    <span>Долг</span>
+                                                    <span>{(totals.totalActual - totalPaid).toLocaleString('ru-RU')} ₽</span>
+                                                </div>
+                                            )}
                                             {isOrganizer && (
                                                 <div className="flex justify-between text-sm font-semibold">
                                                     <span>Прибыль</span>
@@ -553,7 +607,12 @@ export default function ShopPage() {
                                                 </div>
                                             )}
                                         </div>
-                                        <Button className="w-full" onClick={onSubmitSale} isLoading={isSubmitting} disabled={cart.length === 0}>
+                                        {hasDebtWithoutClient && (
+                                            <div className="p-2 rounded-lg bg-destructive/10 text-destructive text-xs font-medium text-center">
+                                                Выберите клиента — без клиента долг оформить нельзя
+                                            </div>
+                                        )}
+                                        <Button className="w-full" onClick={onSubmitSale} isLoading={isSubmitting} disabled={cart.length === 0 || hasDebtWithoutClient}>
                                             <ShoppingCart className="h-4 w-4 mr-2" />
                                             Оформить продажу
                                         </Button>

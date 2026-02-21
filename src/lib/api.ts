@@ -772,6 +772,8 @@ export interface SaleResponse {
     totalRecommended: number;
     totalActual: number;
     paidAmount: number;
+    cashAmount: number;
+    cardAmount: number;
     paymentMethod: PaymentMethod;
     profit: number;
     status: SaleStatus;
@@ -808,6 +810,8 @@ export interface CreateSaleData {
     clientId?: string;
     paidAmount?: number;
     paymentMethod?: PaymentMethod;
+    cashAmount?: number;
+    cardAmount?: number;
     items: CreateSaleItemData[];
 }
 
