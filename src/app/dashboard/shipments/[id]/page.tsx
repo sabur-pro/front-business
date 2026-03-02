@@ -19,8 +19,9 @@ import {
     ArrowDownLeft,
     FileText,
     Truck,
+    Search,
 } from 'lucide-react';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ImageViewer } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import {
     shipmentApi,
@@ -59,6 +60,8 @@ export default function ShipmentDetailPage() {
     const [receiverPhotoPreview, setReceiverPhotoPreview] = useState('');
     const [isAccepting, setIsAccepting] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [viewerImage, setViewerImage] = useState<string | null>(null);
+    const [viewerAlt, setViewerAlt] = useState('');
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push('/login');
@@ -339,11 +342,19 @@ export default function ShipmentDetailPage() {
                         >
                             <div className="flex items-center gap-3">
                                 {item.photo ? (
-                                    <img
-                                        src={getPhotoUrl(item.photo) || ''}
-                                        alt={item.sku}
-                                        className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                                    />
+                                    <div
+                                        className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer group"
+                                        onClick={(e) => { e.stopPropagation(); setViewerImage(getPhotoUrl(item.photo) || ''); setViewerAlt(item.sku); }}
+                                    >
+                                        <img
+                                            src={getPhotoUrl(item.photo) || ''}
+                                            alt={item.sku}
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                            <Search className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                    </div>
                                 ) : (
                                     <div className="w-12 h-12 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0">
                                         <Package className="h-5 w-5 text-muted-foreground" />
@@ -384,11 +395,19 @@ export default function ShipmentDetailPage() {
                                 <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
                                     <FileText className="h-3.5 w-3.5" /> Накладная
                                 </p>
-                                <img
-                                    src={getPhotoUrl(shipment.waybillPhoto) || ''}
-                                    alt="Накладная"
-                                    className="w-full h-40 object-cover rounded-xl border border-border"
-                                />
+                                <div
+                                    className="relative rounded-xl overflow-hidden border border-border cursor-pointer group"
+                                    onClick={() => { setViewerImage(getPhotoUrl(shipment.waybillPhoto) || ''); setViewerAlt('Накладная'); }}
+                                >
+                                    <img
+                                        src={getPhotoUrl(shipment.waybillPhoto) || ''}
+                                        alt="Накладная"
+                                        className="w-full h-40 object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                        <Search className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                </div>
                             </div>
                         )}
                         {shipment.transportPhoto && (
@@ -396,11 +415,19 @@ export default function ShipmentDetailPage() {
                                 <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
                                     <Truck className="h-3.5 w-3.5" /> Транспорт
                                 </p>
-                                <img
-                                    src={getPhotoUrl(shipment.transportPhoto) || ''}
-                                    alt="Транспорт"
-                                    className="w-full h-40 object-cover rounded-xl border border-border"
-                                />
+                                <div
+                                    className="relative rounded-xl overflow-hidden border border-border cursor-pointer group"
+                                    onClick={() => { setViewerImage(getPhotoUrl(shipment.transportPhoto) || ''); setViewerAlt('Транспорт'); }}
+                                >
+                                    <img
+                                        src={getPhotoUrl(shipment.transportPhoto) || ''}
+                                        alt="Транспорт"
+                                        className="w-full h-40 object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                        <Search className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                </div>
                             </div>
                         )}
                         {shipment.receiverWaybillPhoto && (
@@ -408,11 +435,19 @@ export default function ShipmentDetailPage() {
                                 <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
                                     <CheckCircle2 className="h-3.5 w-3.5" /> Подписанная накладная
                                 </p>
-                                <img
-                                    src={getPhotoUrl(shipment.receiverWaybillPhoto) || ''}
-                                    alt="Подписанная накладная"
-                                    className="w-full h-40 object-cover rounded-xl border border-border"
-                                />
+                                <div
+                                    className="relative rounded-xl overflow-hidden border border-border cursor-pointer group"
+                                    onClick={() => { setViewerImage(getPhotoUrl(shipment.receiverWaybillPhoto) || ''); setViewerAlt('Подписанная накладная'); }}
+                                >
+                                    <img
+                                        src={getPhotoUrl(shipment.receiverWaybillPhoto) || ''}
+                                        alt="Подписанная накладная"
+                                        className="w-full h-40 object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                        <Search className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -510,6 +545,12 @@ export default function ShipmentDetailPage() {
                     </div>
                 </Card>
             )}
+            {/* Image Viewer */}
+            <AnimatePresence>
+                {viewerImage && (
+                    <ImageViewer src={viewerImage} alt={viewerAlt} onClose={() => setViewerImage(null)} />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

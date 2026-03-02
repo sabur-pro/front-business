@@ -22,6 +22,7 @@ import {
     PackageCheck,
     Store,
     Users2,
+    Pencil,
 } from 'lucide-react';
 import { Button, Card, Input } from '@/components/ui';
 import { employeeApi, organizationApi, settingsApi, EmployeeResponse, PointResponse } from '@/lib/api';
@@ -58,6 +59,11 @@ export default function EmployeesPage() {
     const [assignSuccess, setAssignSuccess] = useState<string | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [detailEmployee, setDetailEmployee] = useState<EmployeeResponse | null>(null);
+
+    // Edit employee data
+    const [isEditingEmployee, setIsEditingEmployee] = useState(false);
+    const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '' });
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isTogglingPermission, setIsTogglingPermission] = useState(false);
 
     // Forms
@@ -520,21 +526,125 @@ export default function EmployeesPage() {
                             </div>
 
                             <div className="p-6 space-y-5">
-                                {/* Contact info */}
+                                {/* Contact info / Edit form */}
                                 <div className="space-y-3">
-                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Контакты</h3>
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-3 text-sm">
-                                            <Mail className="h-4 w-4 text-muted-foreground" />
-                                            <span>{detailEmployee.email}</span>
-                                        </div>
-                                        {detailEmployee.phone && (
-                                            <div className="flex items-center gap-3 text-sm">
-                                                <Phone className="h-4 w-4 text-muted-foreground" />
-                                                <span>{detailEmployee.phone}</span>
-                                            </div>
-                                        )}
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Контакты</h3>
+                                        <button
+                                            onClick={() => {
+                                                if (!isEditingEmployee) {
+                                                    setEditForm({
+                                                        firstName: detailEmployee.firstName,
+                                                        lastName: detailEmployee.lastName,
+                                                        email: detailEmployee.email,
+                                                        password: '',
+                                                        phone: detailEmployee.phone || '',
+                                                    });
+                                                }
+                                                setIsEditingEmployee(!isEditingEmployee);
+                                            }}
+                                            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                                            title={isEditingEmployee ? 'Отмена' : 'Редактировать'}
+                                        >
+                                            {isEditingEmployee ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                                        </button>
                                     </div>
+
+                                    {isEditingEmployee ? (
+                                        <div className="space-y-2.5">
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-[10px] text-muted-foreground block mb-0.5">Имя</label>
+                                                    <input
+                                                        value={editForm.firstName}
+                                                        onChange={(e) => setEditForm(f => ({ ...f, firstName: e.target.value }))}
+                                                        className="w-full rounded-lg border border-border/50 bg-card/80 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-muted-foreground block mb-0.5">Фамилия</label>
+                                                    <input
+                                                        value={editForm.lastName}
+                                                        onChange={(e) => setEditForm(f => ({ ...f, lastName: e.target.value }))}
+                                                        className="w-full rounded-lg border border-border/50 bg-card/80 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground block mb-0.5">Email</label>
+                                                <input
+                                                    type="email"
+                                                    value={editForm.email}
+                                                    onChange={(e) => setEditForm(f => ({ ...f, email: e.target.value }))}
+                                                    className="w-full rounded-lg border border-border/50 bg-card/80 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground block mb-0.5">Новый пароль (оставьте пустым чтобы не менять)</label>
+                                                <input
+                                                    type="password"
+                                                    value={editForm.password}
+                                                    onChange={(e) => setEditForm(f => ({ ...f, password: e.target.value }))}
+                                                    placeholder="••••••"
+                                                    className="w-full rounded-lg border border-border/50 bg-card/80 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground block mb-0.5">Телефон</label>
+                                                <input
+                                                    value={editForm.phone}
+                                                    onChange={(e) => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                                                    className="w-full rounded-lg border border-border/50 bg-card/80 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                />
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                className="w-full"
+                                                isLoading={isSavingEdit}
+                                                onClick={async () => {
+                                                    setIsSavingEdit(true);
+                                                    try {
+                                                        const payload: Record<string, string> = {};
+                                                        if (editForm.firstName !== detailEmployee.firstName) payload.firstName = editForm.firstName;
+                                                        if (editForm.lastName !== detailEmployee.lastName) payload.lastName = editForm.lastName;
+                                                        if (editForm.email !== detailEmployee.email) payload.email = editForm.email;
+                                                        if (editForm.phone !== (detailEmployee.phone || '')) payload.phone = editForm.phone;
+                                                        if (editForm.password) payload.password = editForm.password;
+
+                                                        if (Object.keys(payload).length === 0) {
+                                                            setIsEditingEmployee(false);
+                                                            return;
+                                                        }
+
+                                                        const updated = await employeeApi.update(detailEmployee.id, payload);
+                                                        setDetailEmployee(updated);
+                                                        setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
+                                                        setIsEditingEmployee(false);
+                                                    } catch (err: any) {
+                                                        setError(err.response?.data?.message || 'Ошибка обновления данных');
+                                                    } finally {
+                                                        setIsSavingEdit(false);
+                                                    }
+                                                }}
+                                            >
+                                                <Check className="h-3.5 w-3.5 mr-1.5" />
+                                                Сохранить
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-3 text-sm">
+                                                <Mail className="h-4 w-4 text-muted-foreground" />
+                                                <span>{detailEmployee.email}</span>
+                                            </div>
+                                            {detailEmployee.phone && (
+                                                <div className="flex items-center gap-3 text-sm">
+                                                    <Phone className="h-4 w-4 text-muted-foreground" />
+                                                    <span>{detailEmployee.phone}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Assigned points with unassign + add */}
@@ -608,16 +718,14 @@ export default function EmployeesPage() {
                                                 }
                                             }}
                                             disabled={isTogglingPermission}
-                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                                                detailEmployee.canCreateShipment
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${detailEmployee.canCreateShipment
                                                     ? 'bg-green-500'
                                                     : 'bg-gray-300 dark:bg-gray-600'
-                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                                } ${isTogglingPermission ? 'opacity-50' : ''}`}
                                         >
                                             <span
-                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                                                    detailEmployee.canCreateShipment ? 'translate-x-5' : 'translate-x-0'
-                                                }`}
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${detailEmployee.canCreateShipment ? 'translate-x-5' : 'translate-x-0'
+                                                    }`}
                                             />
                                         </button>
                                     </div>
@@ -649,16 +757,14 @@ export default function EmployeesPage() {
                                                 }
                                             }}
                                             disabled={isTogglingPermission}
-                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                                                detailEmployee.canReceiveShipment
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${detailEmployee.canReceiveShipment
                                                     ? 'bg-green-500'
                                                     : 'bg-gray-300 dark:bg-gray-600'
-                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                                } ${isTogglingPermission ? 'opacity-50' : ''}`}
                                         >
                                             <span
-                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                                                    detailEmployee.canReceiveShipment ? 'translate-x-5' : 'translate-x-0'
-                                                }`}
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${detailEmployee.canReceiveShipment ? 'translate-x-5' : 'translate-x-0'
+                                                    }`}
                                             />
                                         </button>
                                     </div>
@@ -690,16 +796,14 @@ export default function EmployeesPage() {
                                                 }
                                             }}
                                             disabled={isTogglingPermission}
-                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                                                detailEmployee.canSell
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${detailEmployee.canSell
                                                     ? 'bg-green-500'
                                                     : 'bg-gray-300 dark:bg-gray-600'
-                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                                } ${isTogglingPermission ? 'opacity-50' : ''}`}
                                         >
                                             <span
-                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                                                    detailEmployee.canSell ? 'translate-x-5' : 'translate-x-0'
-                                                }`}
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${detailEmployee.canSell ? 'translate-x-5' : 'translate-x-0'
+                                                    }`}
                                             />
                                         </button>
                                     </div>
@@ -731,16 +835,14 @@ export default function EmployeesPage() {
                                                 }
                                             }}
                                             disabled={isTogglingPermission}
-                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                                                detailEmployee.canAddProducts
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${detailEmployee.canAddProducts
                                                     ? 'bg-green-500'
                                                     : 'bg-gray-300 dark:bg-gray-600'
-                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                                } ${isTogglingPermission ? 'opacity-50' : ''}`}
                                         >
                                             <span
-                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                                                    detailEmployee.canAddProducts ? 'translate-x-5' : 'translate-x-0'
-                                                }`}
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${detailEmployee.canAddProducts ? 'translate-x-5' : 'translate-x-0'
+                                                    }`}
                                             />
                                         </button>
                                     </div>
@@ -772,16 +874,14 @@ export default function EmployeesPage() {
                                                 }
                                             }}
                                             disabled={isTogglingPermission}
-                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                                                detailEmployee.canManageCounterparties
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${detailEmployee.canManageCounterparties
                                                     ? 'bg-green-500'
                                                     : 'bg-gray-300 dark:bg-gray-600'
-                                            } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                                } ${isTogglingPermission ? 'opacity-50' : ''}`}
                                         >
                                             <span
-                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                                                    detailEmployee.canManageCounterparties ? 'translate-x-5' : 'translate-x-0'
-                                                }`}
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${detailEmployee.canManageCounterparties ? 'translate-x-5' : 'translate-x-0'
+                                                    }`}
                                             />
                                         </button>
                                     </div>

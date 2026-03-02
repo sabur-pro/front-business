@@ -385,6 +385,11 @@ export const employeeApi = {
         const response = await api.put<EmployeeResponse>(`/employees/${employeeId}/permissions`, data);
         return response.data;
     },
+
+    update: async (employeeId: string, data: UpdateEmployeeDataPayload) => {
+        const response = await api.put<EmployeeResponse>(`/employees/${employeeId}`, data);
+        return response.data;
+    },
 };
 
 export interface EmployeeResponse {
@@ -417,6 +422,14 @@ export interface CreateEmployeeData {
     password: string;
     firstName: string;
     lastName: string;
+    phone?: string;
+}
+
+export interface UpdateEmployeeDataPayload {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    password?: string;
     phone?: string;
 }
 
@@ -531,8 +544,8 @@ export interface ProductResponse {
 
 export interface CreateProductData {
     sku: string;
-    photoOriginal?: string;
-    photo?: string;
+    photoOriginal?: string | null;
+    photo?: string | null;
     sizeRange?: string;
     boxCount: number;
     pairCount: number;
@@ -550,8 +563,8 @@ export interface CreateProductData {
 
 export interface UpdateProductData {
     sku?: string;
-    photoOriginal?: string;
-    photo?: string;
+    photoOriginal?: string | null;
+    photo?: string | null;
     sizeRange?: string;
     boxCount?: number;
     pairCount?: number;
@@ -569,8 +582,8 @@ export interface UpdateProductData {
 
 export interface BatchProductItem {
     sku: string;
-    photoOriginal?: string;
-    photo?: string;
+    photoOriginal?: string | null;
+    photo?: string | null;
     sizeRange?: string;
     boxCount: number;
     pairCount: number;

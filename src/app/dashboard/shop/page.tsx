@@ -15,7 +15,7 @@ import {
     Banknote,
     CreditCard,
 } from 'lucide-react';
-import { Button, Card, Input, CounterpartySelect } from '@/components/ui';
+import { Button, Card, Input, CounterpartySelect, ImageViewer } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import {
     warehouseApi,
@@ -54,6 +54,10 @@ export default function ShopPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [note, setNote] = useState('');
     const [saleCreated, setSaleCreated] = useState<string | null>(null);
+
+    // Image viewer
+    const [viewerImage, setViewerImage] = useState<string | null>(null);
+    const [viewerAlt, setViewerAlt] = useState('');
 
     // Client & payment
     const [clientId, setClientId] = useState<string | null>(null);
@@ -356,7 +360,15 @@ export default function ShopPage() {
                                                 className="w-full p-2.5 text-left rounded-xl border border-border/50 hover:bg-accent/50 transition-colors flex items-center gap-3"
                                             >
                                                 {product.photo ? (
-                                                    <img src={`${process.env.NEXT_PUBLIC_API_URL}${product.photo}`} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                                                    <div
+                                                        className="relative w-10 h-10 rounded-lg overflow-hidden cursor-pointer group"
+                                                        onClick={(e) => { e.stopPropagation(); setViewerImage(`${process.env.NEXT_PUBLIC_API_URL}${product.photo}`); setViewerAlt(product.sku); }}
+                                                    >
+                                                        <img src={`${process.env.NEXT_PUBLIC_API_URL}${product.photo}`} alt="" className="w-full h-full object-cover" />
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                                            <Search className="h-3.5 w-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        </div>
+                                                    </div>
                                                 ) : (
                                                     <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                                                         <Package className="h-5 w-5 text-muted-foreground" />
@@ -396,7 +408,15 @@ export default function ShopPage() {
                                         <Card key={item.product.id} className="p-3">
                                             <div className="flex items-start gap-3">
                                                 {item.product.photo ? (
-                                                    <img src={`${process.env.NEXT_PUBLIC_API_URL}${item.product.photo}`} alt="" className="w-11 h-11 rounded-lg object-cover flex-shrink-0" />
+                                                    <div
+                                                        className="relative w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer group"
+                                                        onClick={() => { setViewerImage(`${process.env.NEXT_PUBLIC_API_URL}${item.product.photo}`); setViewerAlt(item.product.sku); }}
+                                                    >
+                                                        <img src={`${process.env.NEXT_PUBLIC_API_URL}${item.product.photo}`} alt="" className="w-full h-full object-cover" />
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-all">
+                                                            <Search className="h-3.5 w-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        </div>
+                                                    </div>
                                                 ) : (
                                                     <div className="w-11 h-11 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                                                         <Package className="h-5 w-5 text-muted-foreground" />
@@ -421,7 +441,7 @@ export default function ShopPage() {
                                                             <input
                                                                 type="text"
                                                                 inputMode="numeric"
-                                                                value={item.boxCount}
+                                                                value={item.boxCount || ''}
                                                                 onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); updateCartItem(index, 'boxCount', Math.min(Number(v) || 0, item.product.boxCount)); }}
                                                                 className="w-full rounded-lg border border-border/50 bg-card/80 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                             />
@@ -441,7 +461,7 @@ export default function ShopPage() {
                                                         <input
                                                             type="text"
                                                             inputMode="decimal"
-                                                            value={item.actualSalePrice}
+                                                            value={item.actualSalePrice || ''}
                                                             onChange={(e) => { const v = e.target.value.replace(/[^0-9.]/g, ''); updateCartItem(index, 'actualSalePrice', Number(v) || 0); }}
                                                             className="w-full rounded-lg border-2 border-primary/30 bg-primary/5 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
                                                         />
@@ -634,6 +654,13 @@ export default function ShopPage() {
                     )}
                 </>
             )}
+
+            {/* Image Viewer */}
+            <AnimatePresence>
+                {viewerImage && (
+                    <ImageViewer src={viewerImage} alt={viewerAlt} onClose={() => setViewerImage(null)} />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

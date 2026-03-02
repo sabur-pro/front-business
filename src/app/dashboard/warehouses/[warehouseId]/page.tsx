@@ -22,7 +22,7 @@ import {
     Square,
     Filter,
 } from 'lucide-react';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ImageViewer } from '@/components/ui';
 import {
     warehouseApi,
     organizationApi,
@@ -92,6 +92,10 @@ export default function WarehouseDetailPage() {
     const [warehouseEditForm, setWarehouseEditForm] = useState<UpdateWarehouseData>({});
     const [isSavingWarehouse, setIsSavingWarehouse] = useState(false);
     const [isDeletingWarehouse, setIsDeletingWarehouse] = useState(false);
+
+    // Image viewer
+    const [viewerImage, setViewerImage] = useState<string | null>(null);
+    const [viewerAlt, setViewerAlt] = useState('');
 
     // Debounce search
     const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -230,11 +234,17 @@ export default function WarehouseDetailPage() {
             if (editPhotoFile) {
                 const uploaded = await uploadApi.uploadPhoto(editPhotoFile);
                 updateData.photo = uploaded.url;
+            } else if (!editPhotoPreview && editProduct.photo) {
+                updateData.photo = null;
             }
+
             if (editPhotoOriginalFile) {
                 const uploaded = await uploadApi.uploadPhoto(editPhotoOriginalFile);
                 updateData.photoOriginal = uploaded.url;
+            } else if (!editPhotoOriginalPreview && editProduct.photoOriginal) {
+                updateData.photoOriginal = null;
             }
+
             await productApi.update(editProduct.id, updateData);
             setSuccess('Товар обновлён');
             setIsEditModalOpen(false);
@@ -475,22 +485,20 @@ export default function WarehouseDetailPage() {
                     <div className="flex items-center gap-3 flex-shrink-0">
                         <button
                             onClick={handleToggleZeroBoxes}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                                filterZeroBoxes
-                                    ? 'bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400'
-                                    : 'border-border text-muted-foreground hover:bg-muted/50'
-                            }`}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${filterZeroBoxes
+                                ? 'bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400'
+                                : 'border-border text-muted-foreground hover:bg-muted/50'
+                                }`}
                         >
                             <Filter className="h-3.5 w-3.5" />
                             0 коробок
                         </button>
                         <button
                             onClick={() => isSelectMode ? exitSelectMode() : setIsSelectMode(true)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                                isSelectMode
-                                    ? 'bg-primary/10 border-primary/30 text-primary'
-                                    : 'border-border text-muted-foreground hover:bg-muted/50'
-                            }`}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${isSelectMode
+                                ? 'bg-primary/10 border-primary/30 text-primary'
+                                : 'border-border text-muted-foreground hover:bg-muted/50'
+                                }`}
                         >
                             <CheckSquare className="h-3.5 w-3.5" />
                             {isSelectMode ? 'Отмена' : 'Выбрать'}
@@ -498,6 +506,10 @@ export default function WarehouseDetailPage() {
                         <div className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
                             <Package className="h-4 w-4" />
                             <span>Всего: <strong className="text-foreground">{total}</strong>{filterZeroBoxes ? ' (0 коробок)' : ''}</span>
+                            <span className="text-border">|</span>
+                            <span><strong className="text-foreground">{displayProducts.reduce((s, p) => s + p.pairCount, 0)}</strong> пар</span>
+                            <span className="text-border">|</span>
+                            <span><strong className="text-foreground">{displayProducts.reduce((s, p) => s + p.boxCount, 0)}</strong> кор</span>
                         </div>
                     </div>
                 </div>
@@ -564,11 +576,10 @@ export default function WarehouseDetailPage() {
                             transition={{ delay: index * 0.02 }}
                         >
                             <Card
-                                className={`p-3 transition-shadow cursor-pointer ${
-                                    isSelectMode && selectedIds.has(product.id)
-                                        ? 'ring-2 ring-primary shadow-md bg-primary/5'
-                                        : 'hover:shadow-md'
-                                }`}
+                                className={`p-3 transition-shadow cursor-pointer ${isSelectMode && selectedIds.has(product.id)
+                                    ? 'ring-2 ring-primary shadow-md bg-primary/5'
+                                    : 'hover:shadow-md'
+                                    }`}
                                 onClick={() => isSelectMode && toggleSelect(product.id)}
                             >
                                 <div className="flex gap-3">
@@ -583,11 +594,19 @@ export default function WarehouseDetailPage() {
                                     )}
                                     <div className="flex-shrink-0">
                                         {product.photo ? (
-                                            <img
-                                                src={`${API_URL}${product.photo}`}
-                                                alt={product.sku}
-                                                className="w-12 h-12 rounded-lg object-cover border border-border"
-                                            />
+                                            <div
+                                                className="relative w-12 h-12 rounded-lg overflow-hidden border border-border cursor-pointer group"
+                                                onClick={(e) => { e.stopPropagation(); setViewerImage(`${API_URL}${product.photo}`); setViewerAlt(product.sku); }}
+                                            >
+                                                <img
+                                                    src={`${API_URL}${product.photo}`}
+                                                    alt={product.sku}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg cursor-pointer" onClick={() => setViewerImage(`${API_URL}${product.photo}`)}>
+                                                    <Search className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </div>
+                                            </div>
                                         ) : (
                                             <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
                                                 <ImageIcon className="h-5 w-5 text-muted-foreground" />
@@ -863,7 +882,7 @@ export default function WarehouseDetailPage() {
                                         <input
                                             type="number"
                                             min={0}
-                                            value={editForm.boxCount ?? 0}
+                                            value={editForm.boxCount || ''}
                                             onChange={(e) => handleEditFormChange('boxCount', parseInt(e.target.value) || 0)}
                                             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                         />
@@ -873,7 +892,7 @@ export default function WarehouseDetailPage() {
                                         <input
                                             type="number"
                                             min={0}
-                                            value={editForm.pairCount ?? 0}
+                                            value={editForm.pairCount || ''}
                                             onChange={(e) => handleEditFormChange('pairCount', parseInt(e.target.value) || 0)}
                                             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                         />
@@ -888,7 +907,7 @@ export default function WarehouseDetailPage() {
                                             type="number"
                                             min={0}
                                             step="0.01"
-                                            value={editForm.priceYuan ?? 0}
+                                            value={editForm.priceYuan || ''}
                                             onChange={(e) => handleEditFormChange('priceYuan', parseFloat(e.target.value) || 0)}
                                             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                         />
@@ -899,7 +918,7 @@ export default function WarehouseDetailPage() {
                                             type="number"
                                             min={0}
                                             step="0.01"
-                                            value={editForm.priceRub ?? 0}
+                                            value={editForm.priceRub || ''}
                                             onChange={(e) => handleEditFormChange('priceRub', parseFloat(e.target.value) || 0)}
                                             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                         />
@@ -912,7 +931,7 @@ export default function WarehouseDetailPage() {
                                         <label className="block text-xs font-medium mb-1 text-muted-foreground">Итого ¥</label>
                                         <input
                                             type="number"
-                                            value={editForm.totalYuan ?? 0}
+                                            value={editForm.totalYuan || ''}
                                             readOnly
                                             className="w-full px-3 py-2 rounded-lg border border-border bg-muted/50 text-sm"
                                         />
@@ -921,7 +940,7 @@ export default function WarehouseDetailPage() {
                                         <label className="block text-xs font-medium mb-1 text-muted-foreground">Итого ₽</label>
                                         <input
                                             type="number"
-                                            value={editForm.totalRub ?? 0}
+                                            value={editForm.totalRub || ''}
                                             readOnly
                                             className="w-full px-3 py-2 rounded-lg border border-border bg-muted/50 text-sm"
                                         />
@@ -936,7 +955,7 @@ export default function WarehouseDetailPage() {
                                             type="number"
                                             min={0}
                                             step="0.01"
-                                            value={editForm.recommendedSalePrice ?? 0}
+                                            value={editForm.recommendedSalePrice || ''}
                                             onChange={(e) => {
                                                 const val = parseFloat(e.target.value) || 0;
                                                 const total = (editForm.pairCount ?? 0) * val;
@@ -950,7 +969,7 @@ export default function WarehouseDetailPage() {
                                         <label className="block text-xs font-medium mb-1 text-muted-foreground">Итого рек.</label>
                                         <input
                                             type="number"
-                                            value={editForm.totalRecommendedSale ?? 0}
+                                            value={editForm.totalRecommendedSale || ''}
                                             readOnly
                                             className="w-full px-3 py-2 rounded-lg border border-border bg-muted/50 text-sm"
                                         />
@@ -963,7 +982,7 @@ export default function WarehouseDetailPage() {
                                             type="number"
                                             min={0}
                                             step="0.01"
-                                            value={editForm.actualSalePrice ?? 0}
+                                            value={editForm.actualSalePrice || ''}
                                             onChange={(e) => {
                                                 const val = parseFloat(e.target.value) || 0;
                                                 const total = (editForm.pairCount ?? 0) * val;
@@ -977,7 +996,7 @@ export default function WarehouseDetailPage() {
                                         <label className="block text-xs font-medium mb-1 text-muted-foreground">Итого факт.</label>
                                         <input
                                             type="number"
-                                            value={editForm.totalActualSale ?? 0}
+                                            value={editForm.totalActualSale || ''}
                                             readOnly
                                             className="w-full px-3 py-2 rounded-lg border border-border bg-muted/50 text-sm"
                                         />
@@ -1096,6 +1115,13 @@ export default function WarehouseDetailPage() {
                             </div>
                         </motion.div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Image Viewer */}
+            <AnimatePresence>
+                {viewerImage && (
+                    <ImageViewer src={viewerImage} alt={viewerAlt} onClose={() => setViewerImage(null)} />
                 )}
             </AnimatePresence>
         </div>
