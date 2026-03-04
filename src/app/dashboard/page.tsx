@@ -21,7 +21,7 @@ import {
 import { Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/stores';
 import { useSettingsStore } from '@/stores/settings-store';
-import { warehouseApi, organizationApi, productApi, WarehouseResponse, PointResponse, ProductStatsResponse } from '@/lib/api';
+import { warehouseApi, organizationApi, productApi, saleApi, WarehouseResponse, PointResponse, ProductStatsResponse, SalesSummaryResponse } from '@/lib/api';
 
 export default function DashboardPage() {
     const t = useTranslations('dashboard');
@@ -33,7 +33,10 @@ export default function DashboardPage() {
     const [points, setPoints] = useState<PointResponse[]>([]);
     const [totalProducts, setTotalProducts] = useState<number>(0);
     const [productStats, setProductStats] = useState<ProductStatsResponse | null>(null);
+    const [salesSummary, setSalesSummary] = useState<SalesSummaryResponse | null>(null);
+    const [salesPeriod, setSalesPeriod] = useState<string>('day');
     const [isLoadingData, setIsLoadingData] = useState(false);
+    const [isLoadingSales, setIsLoadingSales] = useState(false);
     const { settings, fetchSettings } = useSettingsStore();
 
     useEffect(() => {
@@ -52,10 +55,11 @@ export default function DashboardPage() {
     const loadData = async () => {
         setIsLoadingData(true);
         try {
-            const [warehousesData, pointsData, stats] = await Promise.all([
+            const [warehousesData, pointsData, stats, sales] = await Promise.all([
                 warehouseApi.getAll(),
                 organizationApi.getPoints(),
                 productApi.getStats().catch(() => null),
+                saleApi.getSummary('day').catch(() => null),
             ]);
             setWarehouses(warehousesData);
             setPoints(pointsData);
@@ -63,10 +67,26 @@ export default function DashboardPage() {
                 setProductStats(stats);
                 setTotalProducts(stats.uniqueProducts);
             }
+            if (sales) {
+                setSalesSummary(sales);
+            }
         } catch (error) {
             console.error('Failed to load data', error);
         } finally {
             setIsLoadingData(false);
+        }
+    };
+
+    const loadSalesSummary = async (period: string) => {
+        setIsLoadingSales(true);
+        try {
+            const sales = await saleApi.getSummary(period);
+            setSalesSummary(sales);
+            setSalesPeriod(period);
+        } catch (error) {
+            console.error('Failed to load sales summary', error);
+        } finally {
+            setIsLoadingSales(false);
         }
     };
 
@@ -115,6 +135,10 @@ export default function DashboardPage() {
                     warehouses={warehouses}
                     totalProducts={totalProducts}
                     productStats={productStats}
+                    salesSummary={salesSummary}
+                    salesPeriod={salesPeriod}
+                    onPeriodChange={loadSalesSummary}
+                    isLoadingSales={isLoadingSales}
                     router={router}
                     t={t}
                     tWarehouses={tWarehouses}
@@ -137,6 +161,10 @@ function OrganizerDashboard({
     warehouses,
     totalProducts,
     productStats,
+    salesSummary,
+    salesPeriod,
+    onPeriodChange,
+    isLoadingSales,
     router,
     t,
     tWarehouses,
@@ -145,6 +173,10 @@ function OrganizerDashboard({
     warehouses: WarehouseResponse[];
     totalProducts: number;
     productStats: ProductStatsResponse | null;
+    salesSummary: SalesSummaryResponse | null;
+    salesPeriod: string;
+    onPeriodChange: (period: string) => void;
+    isLoadingSales?: boolean;
     router: ReturnType<typeof useRouter>;
     t: any;
     tWarehouses: any;
@@ -180,6 +212,167 @@ function OrganizerDashboard({
                         </Card>
                     </motion.div>
                 ))}
+            </div>
+
+            {/* Financial Summary */}
+            <div>
+                <h2 className="text-xl font-semibold mb-4">Финансовые итоги</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <Card className="p-6 bg-gradient-to-br from-red-500/10 via-rose-500/5 to-transparent border-red-500/20">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-red-500/20 rounded-xl text-red-600">
+                                <Banknote className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Сумма в юанях</p>
+                                <div className="flex items-baseline gap-2">
+                                    <h3 className="text-2xl font-bold text-foreground">
+                                        ¥ {productStats?.totalYuan?.toLocaleString('ru-RU') || 0}
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card className="p-6 bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-transparent border-blue-500/20">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-blue-500/20 rounded-xl text-blue-600">
+                                <CreditCard className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Себестоимость</p>
+                                <div className="flex items-baseline gap-2">
+                                    <h3 className="text-2xl font-bold text-foreground">
+                                        ₽ {productStats?.totalCostRub?.toLocaleString('ru-RU') || 0}
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card className="p-6 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/20">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-600">
+                                <Store className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Рек. цена</p>
+                                <div className="flex items-baseline gap-2">
+                                    <h3 className="text-2xl font-bold text-foreground">
+                                        ₽ {productStats?.totalRecommendedSale?.toLocaleString('ru-RU') || 0}
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card className="p-6 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-transparent border-orange-500/20">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-orange-500/20 rounded-xl text-orange-600">
+                                <TrendingUp className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Ожидаемая прибыль</p>
+                                <div className="flex items-baseline gap-2">
+                                    <h3 className="text-2xl font-bold text-foreground">
+                                        ₽ {productStats?.differenceRubRecommended?.toLocaleString('ru-RU') || 0}
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            </div>
+
+            {/* Sales Summary */}
+            <div>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold">Продажи за период</h2>
+                    <div className="flex bg-muted p-1 rounded-lg">
+                        {[
+                            { id: 'day', label: 'День' },
+                            { id: 'week', label: 'Неделя' },
+                            { id: 'month', label: 'Месяц' },
+                            { id: 'year', label: 'Год' },
+                        ].map(period => (
+                            <button
+                                key={period.id}
+                                onClick={() => onPeriodChange(period.id)}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${salesPeriod === period.id
+                                    ? 'bg-background shadow-sm text-foreground'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                                    }`}
+                            >
+                                {period.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="p-6 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/20">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-600">
+                                <Banknote className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Фактическая сумма продаж</p>
+                                <motion.div
+                                    key={salesPeriod + (isLoadingSales ? '-loading' : '')}
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="flex items-baseline gap-2"
+                                >
+                                    <h3 className="text-3xl font-bold text-foreground">
+                                        ₽ {isLoadingSales ? '...' : salesSummary?.totalActualSales?.toLocaleString('ru-RU') || 0}
+                                    </h3>
+                                </motion.div>
+                            </div>
+                        </div>
+                    </Card>
+                    <Card className="p-6 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-transparent border-orange-500/20">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-orange-500/20 rounded-xl text-orange-600">
+                                <TrendingUp className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Чистая прибыль</p>
+                                <motion.div
+                                    key={salesPeriod + (isLoadingSales ? '-loading' : '')}
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="flex items-baseline gap-2"
+                                >
+                                    <h3 className="text-3xl font-bold text-foreground">
+                                        ₽ {isLoadingSales ? '...' : salesSummary?.netProfit?.toLocaleString('ru-RU') || 0}
+                                    </h3>
+                                </motion.div>
+                            </div>
+                        </div>
+                    </Card>
+                    <Card className="p-6 bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-transparent border-blue-500/20">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="p-3 bg-blue-500/20 rounded-xl text-blue-600">
+                                <Package className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Количество продаж</p>
+                                <motion.div
+                                    key={salesPeriod + (isLoadingSales ? '-loading' : '')}
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="flex items-baseline gap-2"
+                                >
+                                    <h3 className="text-3xl font-bold text-foreground">
+                                        {isLoadingSales ? '...' : salesSummary?.salesCount || 0}
+                                    </h3>
+                                </motion.div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
             </div>
 
             {/* Quick Actions */}

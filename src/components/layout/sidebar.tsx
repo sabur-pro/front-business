@@ -33,7 +33,7 @@ export function BottomNav() {
     useEffect(() => {
         if (!settings) fetchSettings();
         // Refresh user data to get latest permissions
-        authApi.getMe().then(setUser).catch(() => {});
+        authApi.getMe().then(setUser).catch(() => { });
     }, []);
 
     useEffect(() => {
@@ -41,7 +41,7 @@ export function BottomNav() {
             warehouseApi.getAll().then(warehouses => {
                 setHasShop(warehouses.some(w => w.type === 'SHOP'));
                 setHasWarehouse(warehouses.some(w => w.type === 'WAREHOUSE'));
-            }).catch(() => {});
+            }).catch(() => { });
         }
     }, [user]);
 
@@ -140,12 +140,12 @@ export function BottomNav() {
     });
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-4 px-4 pointer-events-none">
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-4 px-4 pointer-events-none w-full">
             <motion.nav
                 initial={{ y: 100, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ type: 'spring', stiffness: 260, damping: 25, delay: 0.1 }}
-                className="pointer-events-auto flex items-center gap-1 px-3 py-2 rounded-2xl glass shadow-lg shadow-black/10 dark:shadow-black/30 border border-border/50"
+                className="pointer-events-auto flex items-center gap-1 px-3 py-2 rounded-2xl glass shadow-lg shadow-black/10 dark:shadow-black/30 border border-border/50 max-w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             >
                 {filteredItems.map((item) => {
                     const isActive = item.exact
@@ -153,7 +153,7 @@ export function BottomNav() {
                         : pathname?.startsWith(item.href);
 
                     return (
-                        <Link key={item.href} href={item.href}>
+                        <Link key={item.href} href={item.href} className="shrink-0">
                             <div
                                 className={cn(
                                     "relative flex flex-col items-center gap-0.5 px-3.5 py-2 rounded-xl transition-all duration-200",

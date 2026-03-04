@@ -508,6 +508,10 @@ export interface ProductStatsResponse {
     uniqueProducts: number;
     totalBoxes: number;
     totalPairs: number;
+    totalYuan: number;
+    totalCostRub: number;
+    totalRecommendedSale: number;
+    differenceRubRecommended: number;
 }
 
 export interface PaginatedProductsResponse {
@@ -853,7 +857,18 @@ export const saleApi = {
         const response = await api.put<SaleResponse>(`/sales/${id}/cancel`);
         return response.data;
     },
+
+    getSummary: async (period: string) => {
+        const response = await api.get<SalesSummaryResponse>('/sales/summary', { params: { period } });
+        return response.data;
+    },
 };
+
+export interface SalesSummaryResponse {
+    totalActualSales: number;
+    salesCount: number;
+    netProfit: number;
+}
 
 // ==================== COUNTERPARTY API ====================
 
