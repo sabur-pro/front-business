@@ -21,8 +21,9 @@ import {
     CheckSquare,
     Square,
     Filter,
+    History,
 } from 'lucide-react';
-import { Button, Card, ImageViewer } from '@/components/ui';
+import { Button, Card, ImageViewer, AuditHistoryModal } from '@/components/ui';
 import {
     warehouseApi,
     organizationApi,
@@ -96,6 +97,9 @@ export default function WarehouseDetailPage() {
     // Image viewer
     const [viewerImage, setViewerImage] = useState<string | null>(null);
     const [viewerAlt, setViewerAlt] = useState('');
+
+    // History modal
+    const [historyProductId, setHistoryProductId] = useState<string | null>(null);
 
     // Debounce search
     const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -618,6 +622,9 @@ export default function WarehouseDetailPage() {
                                             <h4 className="font-semibold text-sm truncate">{product.sku}</h4>
                                             {!isSelectMode && (
                                                 <div className="flex gap-0.5 flex-shrink-0">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setHistoryProductId(product.id)}>
+                                                        <History className="h-3 w-3" />
+                                                    </Button>
                                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditModal(product)}>
                                                         <Pencil className="h-3 w-3" />
                                                     </Button>
@@ -724,7 +731,7 @@ export default function WarehouseDetailPage() {
                                 <h3 className="text-lg font-semibold">Удалить товар?</h3>
                             </div>
                             <p className="text-sm text-muted-foreground mb-6">
-                                Это действие нельзя отменить. Товар будет удалён навсегда.
+                                Товар будет помечен как удалённый. Его можно будет восстановить через историю.
                             </p>
                             <div className="flex gap-3">
                                 <Button variant="outline" className="flex-1" onClick={() => setDeleteProductId(null)}>
@@ -763,7 +770,7 @@ export default function WarehouseDetailPage() {
                                 <h3 className="text-lg font-semibold">Удалить {selectedIds.size} товаров?</h3>
                             </div>
                             <p className="text-sm text-muted-foreground mb-6">
-                                Это действие нельзя отменить. Выбранные товары будут удалены навсегда.
+                                Выбранные товары будут помечены как удалённые. Их можно будет восстановить через историю.
                             </p>
                             <div className="flex gap-3">
                                 <Button variant="outline" className="flex-1" onClick={() => setShowBulkDeleteConfirm(false)}>
@@ -1124,6 +1131,15 @@ export default function WarehouseDetailPage() {
                     <ImageViewer src={viewerImage} alt={viewerAlt} onClose={() => setViewerImage(null)} />
                 )}
             </AnimatePresence>
+
+            {/* Audit History Modal */}
+            <AuditHistoryModal
+                isOpen={!!historyProductId}
+                onClose={() => setHistoryProductId(null)}
+                entityType="PRODUCT"
+                entityId={historyProductId || ''}
+                title="История товара"
+            />
         </div>
     );
 }

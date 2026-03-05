@@ -2,6 +2,7 @@ export { Button } from './button';
 export { Input } from './input';
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './card';
 export { ThemeToggle } from './theme-toggle';
+export * from './audit-history-modal';
 export { LanguageToggle } from './language-toggle';
 export { CounterpartySelect } from './counterparty-select';
 export { PaymentModal } from './payment-modal';

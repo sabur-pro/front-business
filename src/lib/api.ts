@@ -502,16 +502,60 @@ export const productApi = {
         const response = await api.get<PaginatedProductsResponse>('/products/search-all', { params });
         return response.data;
     },
+
+    restore: async (id: string) => {
+        const response = await api.put<ProductResponse>(`/products/${id}/restore`);
+        return response.data;
+    },
+};
+
+// ==================== AUDIT LOG API ====================
+
+export interface AuditLogResponse {
+    id: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    userId: string;
+    userName?: string;
+    accountId: string;
+    oldData?: Record<string, any> | null;
+    newData?: Record<string, any> | null;
+    metadata?: Record<string, any> | null;
+    createdAt: string;
+}
+
+export interface PaginatedAuditLogsResponse {
+    items: AuditLogResponse[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export const auditApi = {
+    getByEntity: async (entityType: string, entityId: string): Promise<AuditLogResponse[]> => {
+        const response = await api.get<AuditLogResponse[]>(`/audit-logs/entity/${entityType}/${entityId}`);
+        return response.data;
+    },
+
+    getByAccount: async (accountId: string, params?: { page?: number; limit?: number; action?: string; entityType?: string }): Promise<PaginatedAuditLogsResponse> => {
+        const response = await api.get<PaginatedAuditLogsResponse>(`/audit-logs/account/${accountId}`, { params });
+        return response.data;
+    },
 };
 
 export interface ProductStatsResponse {
-    uniqueProducts: number;
+    totalProducts: number;
     totalBoxes: number;
     totalPairs: number;
     totalYuan: number;
     totalCostRub: number;
     totalRecommendedSale: number;
     differenceRubRecommended: number;
+    inTransitProducts: number;
+    inTransitYuan: number;
+    inTransitRub: number;
 }
 
 export interface PaginatedProductsResponse {

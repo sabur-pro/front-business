@@ -14,6 +14,8 @@ import {
     Users,
     MapPin,
     Warehouse,
+    History,
+    ChevronRight,
 } from 'lucide-react';
 import { Card, Button, ThemeToggle, LanguageToggle } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -218,6 +220,32 @@ export default function SettingsPage() {
                             <LanguageToggle />
                         </div>
                     </div>
+                </Card>
+            </motion.div>
+
+            {/* History */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.12 }}
+            >
+                <Card className="p-5">
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">История</h3>
+                    <button
+                        onClick={() => router.push('/dashboard/settings/history')}
+                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-amber-500/10">
+                                <History className="h-4 w-4 text-amber-500" />
+                            </div>
+                            <div className="text-left">
+                                <span className="text-sm font-medium block">История изменений товаров</span>
+                                <p className="text-xs text-muted-foreground">Приходы, изменения, удаления товаров</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
                 </Card>
             </motion.div>
 

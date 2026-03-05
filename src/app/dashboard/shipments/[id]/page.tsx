@@ -20,8 +20,9 @@ import {
     FileText,
     Truck,
     Search,
+    History,
 } from 'lucide-react';
-import { Button, Card, ImageViewer } from '@/components/ui';
+import { Button, Card, ImageViewer, AuditHistoryModal } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
 import {
     shipmentApi,
@@ -62,6 +63,7 @@ export default function ShipmentDetailPage() {
     const [isCancelling, setIsCancelling] = useState(false);
     const [viewerImage, setViewerImage] = useState<string | null>(null);
     const [viewerAlt, setViewerAlt] = useState('');
+    const [showHistory, setShowHistory] = useState(false);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) router.push('/login');
@@ -231,6 +233,10 @@ export default function ShipmentDetailPage() {
                         Создано: {formatDate(shipment.createdAt)}
                     </p>
                 </div>
+                <Button variant="outline" size="sm" onClick={() => setShowHistory(true)}>
+                    <History className="h-4 w-4 mr-1.5" />
+                    История
+                </Button>
             </div>
 
             {/* Banners */}
@@ -551,6 +557,15 @@ export default function ShipmentDetailPage() {
                     <ImageViewer src={viewerImage} alt={viewerAlt} onClose={() => setViewerImage(null)} />
                 )}
             </AnimatePresence>
+
+            {/* Audit History Modal */}
+            <AuditHistoryModal
+                isOpen={showHistory}
+                onClose={() => setShowHistory(false)}
+                entityType="SHIPMENT"
+                entityId={shipmentId}
+                title={`История отправки #${shipment.number}`}
+            />
         </div>
     );
 }

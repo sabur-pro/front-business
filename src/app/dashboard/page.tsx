@@ -65,7 +65,7 @@ export default function DashboardPage() {
             setPoints(pointsData);
             if (stats) {
                 setProductStats(stats);
-                setTotalProducts(stats.uniqueProducts);
+                setTotalProducts(stats.totalProducts);
             }
             if (sales) {
                 setSalesSummary(sales);
@@ -112,7 +112,7 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
             >
                 <h1 className="text-3xl font-bold mb-2">
-                    {t('welcome')}, <span className="gradient-text">{user?.firstName}</span>! 👋
+                    {t('welcome')}, <span className="gradient-text">{user?.firstName}</span>!
                 </h1>
                 <div className="flex items-center gap-2 text-muted-foreground">
                     <Shield className="h-4 w-4" />
@@ -185,7 +185,7 @@ function OrganizerDashboard({
         { label: t('stats.totalWarehouses'), value: String(warehouses.filter(w => w.type !== 'SHOP').length), icon: Warehouse, color: 'bg-green-500/10 text-green-500' },
         { label: 'Магазинов', value: String(warehouses.filter(w => w.type === 'SHOP').length), icon: Store, color: 'bg-purple-500/10 text-purple-500' },
         { label: 'Точек', value: String(points.length), icon: MapPin, color: 'bg-blue-500/10 text-blue-500' },
-        { label: 'Уникальные товары', value: String(productStats?.uniqueProducts ?? totalProducts), icon: Package, color: 'bg-orange-500/10 text-orange-500' },
+        { label: 'Всего товаров', value: String(productStats?.totalProducts ?? totalProducts), icon: Package, color: 'bg-orange-500/10 text-orange-500' },
         { label: 'Всего коробок', value: String(productStats?.totalBoxes ?? 0), icon: Package, color: 'bg-amber-500/10 text-amber-500' },
         { label: 'Всего пар', value: String(productStats?.totalPairs ?? 0), icon: TrendingUp, color: 'bg-pink-500/10 text-pink-500' },
     ];
@@ -283,6 +283,60 @@ function OrganizerDashboard({
                     </Card>
                 </div>
             </div>
+
+            {/* In-Transit Products */}
+            {(productStats?.inTransitProducts ?? 0) > 0 && (
+                <div>
+                    <h2 className="text-xl font-semibold mb-4">В дороге</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card className="p-6 bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent border-violet-500/20">
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className="p-3 bg-violet-500/20 rounded-xl text-violet-600">
+                                    <SendHorizontal className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Товаров в дороге</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <h3 className="text-2xl font-bold text-foreground">
+                                            {productStats?.inTransitProducts?.toLocaleString('ru-RU') || 0}
+                                        </h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                        <Card className="p-6 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-transparent border-violet-500/20">
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className="p-3 bg-violet-500/20 rounded-xl text-violet-600">
+                                    <Banknote className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Сумма в юанях</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <h3 className="text-2xl font-bold text-foreground">
+                                            ¥ {productStats?.inTransitYuan?.toLocaleString('ru-RU') || 0}
+                                        </h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                        <Card className="p-6 bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent border-violet-500/20">
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className="p-3 bg-violet-500/20 rounded-xl text-violet-600">
+                                    <CreditCard className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">Себестоимость в рублях</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <h3 className="text-2xl font-bold text-foreground">
+                                            ₽ {productStats?.inTransitRub?.toLocaleString('ru-RU') || 0}
+                                        </h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            )}
 
             {/* Sales Summary */}
             <div>

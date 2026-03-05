@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import {
@@ -17,6 +17,7 @@ import {
     FileSpreadsheet,
     AlertCircle,
     Camera,
+    History,
 } from 'lucide-react';
 import { Button, Card, Input, CounterpartySelect } from '@/components/ui';
 import {
@@ -74,6 +75,7 @@ const emptyRow = (): ProductRow => ({
 
 export default function ReceiptPage() {
     const { user } = useAuthStore();
+    const router = useRouter();
     const searchParams = useSearchParams();
     const initialPointId = searchParams.get('pointId') || '';
     const [points, setPoints] = useState<PointResponse[]>([]);
@@ -384,9 +386,15 @@ export default function ReceiptPage() {
     return (
         <div className="space-y-6 pb-24">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold">Приход товаров</h1>
-                <p className="text-muted-foreground">Добавление товаров на склад</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold">Приход товаров</h1>
+                    <p className="text-muted-foreground">Добавление товаров на склад</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/receipt-history')}>
+                    <History className="h-4 w-4 mr-1.5" />
+                    История приходов
+                </Button>
             </div>
 
             {/* Success/Error banners */}
