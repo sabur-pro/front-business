@@ -186,6 +186,7 @@ function OrganizerDashboard({
         { label: 'Магазинов', value: String(warehouses.filter(w => w.type === 'SHOP').length), icon: Store, color: 'bg-purple-500/10 text-purple-500' },
         { label: 'Точек', value: String(points.length), icon: MapPin, color: 'bg-blue-500/10 text-blue-500' },
         { label: 'Всего товаров', value: String(productStats?.totalProducts ?? totalProducts), icon: Package, color: 'bg-orange-500/10 text-orange-500' },
+        { label: 'Уникальных товаров', value: String(productStats?.uniqueProducts ?? 0), icon: Package, color: 'bg-cyan-500/10 text-cyan-500' },
         { label: 'Всего коробок', value: String(productStats?.totalBoxes ?? 0), icon: Package, color: 'bg-amber-500/10 text-amber-500' },
         { label: 'Всего пар', value: String(productStats?.totalPairs ?? 0), icon: TrendingUp, color: 'bg-pink-500/10 text-pink-500' },
     ];
@@ -214,74 +215,76 @@ function OrganizerDashboard({
                 ))}
             </div>
 
-            {/* Financial Summary */}
+            {/* Financial Summary — by category */}
             <div>
                 <h2 className="text-xl font-semibold mb-4">Финансовые итоги</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+
+                {/* Overall totals */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                     <Card className="p-6 bg-gradient-to-br from-red-500/10 via-rose-500/5 to-transparent border-red-500/20">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="p-3 bg-red-500/20 rounded-xl text-red-600">
-                                <Banknote className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Сумма в юанях</p>
-                                <div className="flex items-baseline gap-2">
-                                    <h3 className="text-2xl font-bold text-foreground">
-                                        ¥ {productStats?.totalYuan?.toLocaleString('ru-RU') || 0}
-                                    </h3>
-                                </div>
-                            </div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-red-500/20 rounded-lg text-red-600"><Banknote className="h-5 w-5" /></div>
+                            <p className="text-sm font-medium text-muted-foreground">Сумма в юанях</p>
                         </div>
+                        <h3 className="text-2xl font-bold text-foreground truncate">¥ {productStats?.totalYuan?.toLocaleString('ru-RU') || 0}</h3>
                     </Card>
-
                     <Card className="p-6 bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-transparent border-blue-500/20">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="p-3 bg-blue-500/20 rounded-xl text-blue-600">
-                                <CreditCard className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Себестоимость</p>
-                                <div className="flex items-baseline gap-2">
-                                    <h3 className="text-2xl font-bold text-foreground">
-                                        ₽ {productStats?.totalCostRub?.toLocaleString('ru-RU') || 0}
-                                    </h3>
-                                </div>
-                            </div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-blue-500/20 rounded-lg text-blue-600"><CreditCard className="h-5 w-5" /></div>
+                            <p className="text-sm font-medium text-muted-foreground">Себестоимость</p>
                         </div>
+                        <h3 className="text-2xl font-bold text-foreground truncate">₽ {productStats?.totalCostRub?.toLocaleString('ru-RU') || 0}</h3>
                     </Card>
-
                     <Card className="p-6 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500/20">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-600">
-                                <Store className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Рек. цена</p>
-                                <div className="flex items-baseline gap-2">
-                                    <h3 className="text-2xl font-bold text-foreground">
-                                        ₽ {productStats?.totalRecommendedSale?.toLocaleString('ru-RU') || 0}
-                                    </h3>
-                                </div>
-                            </div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-600"><Store className="h-5 w-5" /></div>
+                            <p className="text-sm font-medium text-muted-foreground">Рек. цена</p>
                         </div>
+                        <h3 className="text-2xl font-bold text-foreground truncate">₽ {productStats?.totalRecommendedSale?.toLocaleString('ru-RU') || 0}</h3>
                     </Card>
-
                     <Card className="p-6 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-transparent border-orange-500/20">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="p-3 bg-orange-500/20 rounded-xl text-orange-600">
-                                <TrendingUp className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Ожидаемая прибыль</p>
-                                <div className="flex items-baseline gap-2">
-                                    <h3 className="text-2xl font-bold text-foreground">
-                                        ₽ {productStats?.differenceRubRecommended?.toLocaleString('ru-RU') || 0}
-                                    </h3>
-                                </div>
-                            </div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-orange-500/20 rounded-lg text-orange-600"><TrendingUp className="h-5 w-5" /></div>
+                            <p className="text-sm font-medium text-muted-foreground">Ожидаемая прибыль</p>
                         </div>
+                        <h3 className="text-2xl font-bold text-foreground truncate">₽ {productStats?.differenceRubRecommended?.toLocaleString('ru-RU') || 0}</h3>
                     </Card>
                 </div>
+
+                {/* Category breakdowns */}
+                {productStats?.byCategory && (
+                    <div className="space-y-4">
+                        {([['warehouseOnly', 'Склады', 'from-green-500/10 via-emerald-500/5', 'border-green-500/20', 'bg-green-500/20 text-green-600'],
+                        ['shopOnly', 'Магазины', 'from-purple-500/10 via-fuchsia-500/5', 'border-purple-500/20', 'bg-purple-500/20 text-purple-600'],
+                        ['mixed', 'Смешанные точки', 'from-indigo-500/10 via-blue-500/5', 'border-indigo-500/20', 'bg-indigo-500/20 text-indigo-600']] as const).map(([key, title, gradient, border, iconBg]) => {
+                            const cat = productStats.byCategory[key as 'warehouseOnly' | 'shopOnly' | 'mixed'];
+                            if (!cat) return null;
+                            return (
+                                <div key={key}>
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">{title} ({cat.totalProducts} товаров)</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <Card className={`p-4 bg-gradient-to-br ${gradient} to-transparent ${border}`}>
+                                            <p className="text-[11px] text-muted-foreground mb-1">Сумма ¥</p>
+                                            <p className="text-lg font-bold truncate">¥ {cat.totalYuan.toLocaleString('ru-RU')}</p>
+                                        </Card>
+                                        <Card className={`p-4 bg-gradient-to-br ${gradient} to-transparent ${border}`}>
+                                            <p className="text-[11px] text-muted-foreground mb-1">Себестоимость</p>
+                                            <p className="text-lg font-bold truncate">₽ {cat.totalCostRub.toLocaleString('ru-RU')}</p>
+                                        </Card>
+                                        <Card className={`p-4 bg-gradient-to-br ${gradient} to-transparent ${border}`}>
+                                            <p className="text-[11px] text-muted-foreground mb-1">Рек. цена</p>
+                                            <p className="text-lg font-bold truncate">₽ {cat.totalRecommendedSale.toLocaleString('ru-RU')}</p>
+                                        </Card>
+                                        <Card className={`p-4 bg-gradient-to-br ${gradient} to-transparent ${border}`}>
+                                            <p className="text-[11px] text-muted-foreground mb-1">Ожид. прибыль</p>
+                                            <p className="text-lg font-bold truncate">₽ {cat.differenceRubRecommended.toLocaleString('ru-RU')}</p>
+                                        </Card>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* In-Transit Products */}

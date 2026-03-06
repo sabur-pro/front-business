@@ -545,8 +545,17 @@ export const auditApi = {
     },
 };
 
+export interface CategoryStatsResponse {
+    totalProducts: number;
+    totalYuan: number;
+    totalCostRub: number;
+    totalRecommendedSale: number;
+    differenceRubRecommended: number;
+}
+
 export interface ProductStatsResponse {
     totalProducts: number;
+    uniqueProducts: number;
     totalBoxes: number;
     totalPairs: number;
     totalYuan: number;
@@ -556,6 +565,11 @@ export interface ProductStatsResponse {
     inTransitProducts: number;
     inTransitYuan: number;
     inTransitRub: number;
+    byCategory: {
+        warehouseOnly: CategoryStatsResponse | null;
+        shopOnly: CategoryStatsResponse | null;
+        mixed: CategoryStatsResponse | null;
+    };
 }
 
 export interface PaginatedProductsResponse {
