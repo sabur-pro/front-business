@@ -72,7 +72,6 @@ export default function PointDetailPage() {
     const [pointEmployees, setPointEmployees] = useState<EmployeeResponse[]>([]);
     const [allEmployees, setAllEmployees] = useState<EmployeeResponse[]>([]);
     const [activeTab, setActiveTab] = useState<Tab>('warehouses');
-    const [warehouseProductCounts, setWarehouseProductCounts] = useState<Record<string, number>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isWarehouseModalOpen, setIsWarehouseModalOpen] = useState(false);
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -130,20 +129,6 @@ export default function PointDetailPage() {
             setWarehouses(warehousesData);
             setPointEmployees(pointEmps);
             setAllEmployees(allEmps);
-
-            // Load product counts per warehouse
-            const counts: Record<string, number> = {};
-            await Promise.all(
-                warehousesData.map(async (wh) => {
-                    try {
-                        const res = await productApi.searchByWarehouse(wh.id, { page: 1, limit: 1 });
-                        counts[wh.id] = res.total;
-                    } catch {
-                        counts[wh.id] = 0;
-                    }
-                })
-            );
-            setWarehouseProductCounts(counts);
         } catch (err) {
             console.error('Failed to load point data', err);
         } finally {
@@ -350,8 +335,8 @@ export default function PointDetailPage() {
                 <button
                     onClick={() => setActiveTab('warehouses')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'warehouses'
-                            ? 'bg-card text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
                     <Warehouse className="h-4 w-4 inline mr-2" />
@@ -360,8 +345,8 @@ export default function PointDetailPage() {
                 <button
                     onClick={() => setActiveTab('employees')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'employees'
-                            ? 'bg-card text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
                     <Users className="h-4 w-4 inline mr-2" />
@@ -411,9 +396,19 @@ export default function PointDetailPage() {
                                                 <FileText className="h-3 w-3" /> {wh.description}
                                             </p>
                                         )}
-                                        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                                            <Package className="h-3 w-3" />
-                                            <span>Товаров: <strong className="text-foreground">{warehouseProductCounts[wh.id] ?? 0}</strong></span>
+                                        <div className="mt-2 grid grid-cols-3 gap-1 text-xs">
+                                            <div className="text-center px-2 py-1.5 rounded-lg bg-muted/50">
+                                                <span className="text-muted-foreground block leading-tight">Товаров</span>
+                                                <span className="font-semibold">{wh.productCount ?? 0}</span>
+                                            </div>
+                                            <div className="text-center px-2 py-1.5 rounded-lg bg-muted/50">
+                                                <span className="text-muted-foreground block leading-tight">Пар</span>
+                                                <span className="font-semibold">{wh.totalPairs ?? 0}</span>
+                                            </div>
+                                            <div className="text-center px-2 py-1.5 rounded-lg bg-muted/50">
+                                                <span className="text-muted-foreground block leading-tight">Кор</span>
+                                                <span className="font-semibold">{wh.totalBoxes ?? 0}</span>
+                                            </div>
                                         </div>
                                         <div className="mt-3 flex items-center justify-between">
                                             <span className={`text-xs px-2 py-1 rounded-full ${wh.isActive ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}>
@@ -432,6 +427,21 @@ export default function PointDetailPage() {
                                 </motion.div>
                             ))}
                         </div>
+                    )}
+
+                    {/* Totals summary */}
+                    {!isLoading && warehouses.length > 0 && (
+                        <Card className="p-4 mt-4">
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                                <Package className="h-4 w-4" />
+                                <span>Итого:</span>
+                                <span><strong className="text-foreground">{warehouses.reduce((s, w) => s + (w.productCount ?? 0), 0)}</strong> товаров</span>
+                                <span className="text-border">|</span>
+                                <span><strong className="text-foreground">{warehouses.reduce((s, w) => s + (w.totalPairs ?? 0), 0)}</strong> пар</span>
+                                <span className="text-border">|</span>
+                                <span><strong className="text-foreground">{warehouses.reduce((s, w) => s + (w.totalBoxes ?? 0), 0)}</strong> кор</span>
+                            </div>
+                        </Card>
                     )}
                 </div>
             )}

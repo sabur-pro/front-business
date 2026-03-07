@@ -198,18 +198,25 @@ export default function WarehouseDetailPage() {
     const handleEditFormChange = (field: keyof UpdateProductData, value: any) => {
         setEditForm((prev) => {
             const updated = { ...prev, [field]: value };
-            if (field === 'pairCount' || field === 'priceYuan' || field === 'priceRub') {
-                const pc = field === 'pairCount' ? value : (updated.pairCount ?? 0);
-                const py = field === 'priceYuan' ? value : (updated.priceYuan ?? 0);
-                const pr = field === 'priceRub' ? value : (updated.priceRub ?? 0);
-                updated.totalYuan = pc * py;
-                updated.totalRub = pc * pr;
+
+            // Auto-calculate pairs if boxCount changes (1 box = 8 pairs)
+            if (field === 'boxCount') {
+                updated.pairCount = (Number(value) || 0) * 8;
             }
-            if (field === 'boxCount' || field === 'pairCount') {
-                updated.totalRecommendedSale = (field === 'pairCount' ? value : (updated.pairCount ?? 0)) * (updated.recommendedSalePrice ?? 0);
+
+            const activePairCount = field === 'pairCount' ? Number(value) : (updated.pairCount ?? 0);
+
+            if (field === 'boxCount' || field === 'pairCount' || field === 'priceYuan' || field === 'priceRub') {
+                const py = field === 'priceYuan' ? Number(value) : (updated.priceYuan ?? 0);
+                const pr = field === 'priceRub' ? Number(value) : (updated.priceRub ?? 0);
+                updated.totalYuan = activePairCount * py;
+                updated.totalRub = activePairCount * pr;
             }
-            if (field === 'pairCount') {
-                updated.totalActualSale = value * (updated.actualSalePrice ?? 0);
+            if (field === 'boxCount' || field === 'pairCount' || field === 'recommendedSalePrice') {
+                updated.totalRecommendedSale = activePairCount * (field === 'recommendedSalePrice' ? Number(value) : (updated.recommendedSalePrice ?? 0));
+            }
+            if (field === 'boxCount' || field === 'pairCount' || field === 'actualSalePrice') {
+                updated.totalActualSale = activePairCount * (field === 'actualSalePrice' ? Number(value) : (updated.actualSalePrice ?? 0));
             }
             return updated;
         });
@@ -387,22 +394,11 @@ export default function WarehouseDetailPage() {
 
     const displayProducts = products;
 
-    // Build page numbers with ellipsis
-    const buildPageNumbers = (): (number | string)[] => {
-        const pages: (number | string)[] = [];
-        for (let i = 1; i <= totalPages; i++) {
-            if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 1) {
-                if (pages.length > 0) {
-                    const last = pages[pages.length - 1];
-                    if (typeof last === 'number' && i - last > 1) {
-                        pages.push('...');
-                    }
-                }
-                pages.push(i);
-            }
-        }
-        return pages;
-    };
+    // Build all page numbers (no ellipsis)
+    const allPageNumbers: number[] = [];
+    for (let i = 1; i <= totalPages; i++) {
+        allPageNumbers.push(i);
+    }
 
     return (
         <div className="space-y-6">
@@ -511,9 +507,9 @@ export default function WarehouseDetailPage() {
                             <Package className="h-4 w-4" />
                             <span>Всего: <strong className="text-foreground">{total}</strong>{filterZeroBoxes ? ' (0 коробок)' : ''}</span>
                             <span className="text-border">|</span>
-                            <span><strong className="text-foreground">{displayProducts.reduce((s, p) => s + p.pairCount, 0)}</strong> пар</span>
+                            <span><strong className="text-foreground">{productsData?.totalPairs ?? 0}</strong> пар</span>
                             <span className="text-border">|</span>
-                            <span><strong className="text-foreground">{displayProducts.reduce((s, p) => s + p.boxCount, 0)}</strong> кор</span>
+                            <span><strong className="text-foreground">{productsData?.totalBoxes ?? 0}</strong> кор</span>
                         </div>
                     </div>
                 </div>
@@ -688,22 +684,20 @@ export default function WarehouseDetailPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2">
-                    <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => handlePageChange(currentPage - 1)}>
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    {buildPageNumbers().map((p, i) =>
-                        typeof p === 'string' ? (
-                            <span key={`dots-${i}`} className="px-2 text-muted-foreground">...</span>
-                        ) : (
+                <div className="overflow-x-auto">
+                    <div className="flex items-center gap-1 min-w-max py-1 px-1">
+                        <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => handlePageChange(currentPage - 1)}>
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        {allPageNumbers.map((p) => (
                             <Button key={p} variant={p === currentPage ? 'default' : 'outline'} size="sm" className="min-w-[36px]" onClick={() => handlePageChange(p)}>
                                 {p}
                             </Button>
-                        ),
-                    )}
-                    <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => handlePageChange(currentPage + 1)}>
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                        ))}
+                        <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => handlePageChange(currentPage + 1)}>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
             )}
 

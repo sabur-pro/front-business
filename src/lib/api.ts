@@ -273,6 +273,9 @@ export interface WarehouseResponse {
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
+    productCount?: number;
+    totalPairs?: number;
+    totalBoxes?: number;
 }
 
 export interface CreateWarehouseData {
@@ -578,6 +581,8 @@ export interface PaginatedProductsResponse {
     page: number;
     limit: number;
     totalPages: number;
+    totalPairs: number;
+    totalBoxes: number;
 }
 
 export interface ProductResponse {

@@ -212,6 +212,21 @@ export default function WarehousesPage() {
                                         <FileText className="h-3 w-3" /> {warehouse.description}
                                     </p>
                                 )}
+                                {/* Product stats */}
+                                <div className="mt-2 grid grid-cols-3 gap-1 text-xs">
+                                    <div className="text-center px-2 py-1.5 rounded-lg bg-muted/50">
+                                        <span className="text-muted-foreground block leading-tight">Товаров</span>
+                                        <span className="font-semibold">{warehouse.productCount ?? 0}</span>
+                                    </div>
+                                    <div className="text-center px-2 py-1.5 rounded-lg bg-muted/50">
+                                        <span className="text-muted-foreground block leading-tight">Пар</span>
+                                        <span className="font-semibold">{warehouse.totalPairs ?? 0}</span>
+                                    </div>
+                                    <div className="text-center px-2 py-1.5 rounded-lg bg-muted/50">
+                                        <span className="text-muted-foreground block leading-tight">Кор</span>
+                                        <span className="font-semibold">{warehouse.totalBoxes ?? 0}</span>
+                                    </div>
+                                </div>
                                 <div className="mt-3 pt-3 border-t flex items-center justify-between">
                                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                                         <MapPin className="h-3 w-3" />
@@ -232,6 +247,21 @@ export default function WarehousesPage() {
                         </motion.div>
                     ))}
                 </div>
+            )}
+
+            {/* Totals summary */}
+            {!isLoading && filteredWarehouses.length > 0 && (
+                <Card className="p-4">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                        <Package className="h-4 w-4" />
+                        <span>Итого:</span>
+                        <span><strong className="text-foreground">{filteredWarehouses.reduce((s, w) => s + (w.productCount ?? 0), 0)}</strong> товаров</span>
+                        <span className="text-border">|</span>
+                        <span><strong className="text-foreground">{filteredWarehouses.reduce((s, w) => s + (w.totalPairs ?? 0), 0)}</strong> пар</span>
+                        <span className="text-border">|</span>
+                        <span><strong className="text-foreground">{filteredWarehouses.reduce((s, w) => s + (w.totalBoxes ?? 0), 0)}</strong> кор</span>
+                    </div>
+                </Card>
             )}
             {/* Create Warehouse Modal */}
             <AnimatePresence>

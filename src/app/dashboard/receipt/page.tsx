@@ -129,12 +129,18 @@ export default function ReceiptPage() {
         setRows(prev => prev.map(row => {
             if (row.id !== id) return row;
             const updated = { ...row, [field]: value };
+
+            // Auto-calculate pairs if boxCount changes (1 box = 8 pairs)
+            if (field === 'boxCount') {
+                updated.pairCount = (Number(value) || 0) * 8;
+            }
+
             // Auto-calculate totals
             if (field === 'boxCount' || field === 'pairCount' || field === 'priceYuan' || field === 'priceRub') {
                 updated.totalYuan = updated.pairCount * updated.priceYuan;
                 updated.totalRub = updated.pairCount * updated.priceRub;
             }
-            if (field === 'recommendedSalePrice' || field === 'pairCount') {
+            if (field === 'boxCount' || field === 'pairCount' || field === 'recommendedSalePrice') {
                 updated.totalRecommendedSale = updated.pairCount * updated.recommendedSalePrice;
             }
             return updated;
