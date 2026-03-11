@@ -9,6 +9,7 @@ import {
     ChevronDown,
     Package,
     Plus,
+    Minus,
     Trash2,
     ImageIcon,
     X,
@@ -169,13 +170,18 @@ export default function CreateShipmentPage() {
 
     const addProduct = (product: ProductResponse) => {
         if (selectedProducts.some(sp => sp.product.id === product.id)) return;
+        
+        const initialBoxCount = product.boxCount > 0 ? 1 : 0;
+        const pairsPerBox = product.boxCount > 0 ? product.pairCount / product.boxCount : 0;
+        const initialPairCount = Math.round(initialBoxCount * pairsPerBox);
+
         setSelectedProducts(prev => [
             ...prev,
             {
                 id: crypto.randomUUID(),
                 product,
-                boxCount: product.boxCount,
-                pairCount: product.pairCount,
+                boxCount: initialBoxCount,
+                pairCount: initialPairCount,
             },
         ]);
     };
@@ -463,7 +469,40 @@ export default function CreateShipmentPage() {
                                             </div>
                                         </div>
                                         {isSelected ? (
-                                            <span className="text-xs px-2 py-1 rounded-lg bg-primary/10 text-primary font-medium flex-shrink-0">Выбран</span>
+                                            <div className="flex items-center gap-1 bg-background border border-border rounded-lg p-0.5" onClick={(e) => e.stopPropagation()}>
+                                                <button 
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        const sp = selectedProducts.find(s => s.product.id === product.id);
+                                                        if (sp) {
+                                                            if (sp.boxCount <= 1) {
+                                                                removeProduct(sp.id);
+                                                            } else {
+                                                                updateProductBoxCount(sp.id, sp.boxCount - 1);
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors"
+                                                >
+                                                    <Minus className="h-3 w-3" />
+                                                </button>
+                                                <span className="text-xs font-semibold w-6 text-center">
+                                                    {selectedProducts.find(s => s.product.id === product.id)?.boxCount}
+                                                </span>
+                                                <button 
+                                                    type="button"
+                                                    disabled={selectedProducts.find(s => s.product.id === product.id)?.boxCount === product.boxCount}
+                                                    onClick={(e) => {
+                                                        const sp = selectedProducts.find(s => s.product.id === product.id);
+                                                        if (sp && sp.boxCount < product.boxCount) {
+                                                            updateProductBoxCount(sp.id, sp.boxCount + 1);
+                                                        }
+                                                    }}
+                                                    className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors disabled:opacity-50"
+                                                >
+                                                    <Plus className="h-3 w-3" />
+                                                </button>
+                                            </div>
                                         ) : (
                                             <button className="p-1.5 rounded-lg hover:bg-primary/10 text-primary transition-colors flex-shrink-0">
                                                 <Plus className="h-4 w-4" />
