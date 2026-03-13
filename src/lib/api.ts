@@ -120,6 +120,8 @@ api.interceptors.response.use(
             }
 
             isRefreshing = false;
+            // No refresh token available — redirect to login
+            clearTokens();
         }
 
         return Promise.reject(error);
@@ -510,7 +512,116 @@ export const productApi = {
         const response = await api.put<ProductResponse>(`/products/${id}/restore`);
         return response.data;
     },
+
+    trackBySku: async (sku: string): Promise<ProductTrackingResponse> => {
+        const response = await api.get<ProductTrackingResponse>(`/products/track/${encodeURIComponent(sku)}`);
+        return response.data;
+    },
 };
+
+// ==================== PRODUCT TRACKING TYPES ====================
+
+export interface TrackingProduct {
+    id: string;
+    sku: string;
+    photo: string | null;
+    photoOriginal: string | null;
+    sizeRange: string | null;
+    boxCount: number;
+    pairCount: number;
+    priceYuan: number;
+    priceRub: number;
+    totalYuan: number;
+    totalRub: number;
+    warehouseId: string | null;
+    warehouseName: string | null;
+    warehouseType: string | null;
+    pointName: string | null;
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface TrackingReceipt {
+    id: string;
+    receiptNumber: string;
+    receiptId: string;
+    pointName: string;
+    warehouseId: string;
+    supplierName: string | null;
+    quantity: number;
+    costPrice: number;
+    salePrice: number;
+    totalAmount: number;
+    status: string;
+    createdAt: string;
+}
+
+export interface TrackingTransfer {
+    id: string;
+    transferNumber: string;
+    transferId: string;
+    fromPointName: string;
+    toPointName: string;
+    fromWarehouseName: string | null;
+    toWarehouseName: string | null;
+    boxCount: number;
+    pairCount: number;
+    priceYuan: number;
+    priceRub: number;
+    totalYuan: number;
+    totalRub: number;
+    status: string;
+    sentAt: string | null;
+    receivedAt: string | null;
+    createdAt: string;
+}
+
+export interface TrackingSale {
+    id: string;
+    saleNumber: string;
+    saleId: string;
+    shopName: string;
+    pointName: string;
+    boxCount: number;
+    pairCount: number;
+    priceRub: number;
+    actualSalePrice: number;
+    totalActual: number;
+    profit: number;
+    status: string;
+    createdAt: string;
+}
+
+export interface TrackingStock {
+    warehouseId: string;
+    warehouseName: string;
+    warehouseType: string;
+    pointName: string;
+    productId: string;
+    quantity: number;
+    boxCount: number;
+    pairCount: number;
+}
+
+export interface TrackingTimelineEvent {
+    type: 'RECEIPT' | 'TRANSFER_OUT' | 'TRANSFER_IN' | 'SALE' | 'CREATED' | 'UPDATED' | 'DELETED';
+    date: string;
+    description: string;
+    pointName: string | null;
+    warehouseName: string | null;
+    boxCount: number | null;
+    pairCount: number | null;
+    details: Record<string, any>;
+}
+
+export interface ProductTrackingResponse {
+    products: TrackingProduct[];
+    receipts: TrackingReceipt[];
+    transfers: TrackingTransfer[];
+    sales: TrackingSale[];
+    currentStock: TrackingStock[];
+    timeline: TrackingTimelineEvent[];
+}
 
 // ==================== AUDIT LOG API ====================
 

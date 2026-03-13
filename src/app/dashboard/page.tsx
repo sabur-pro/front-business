@@ -28,6 +28,12 @@ import {
     Pencil,
     Trash2,
     RotateCcw,
+    ArrowRight,
+    ShoppingCart,
+    Truck,
+    PackageCheck,
+    History,
+    BarChart3,
 } from 'lucide-react';
 import { Button, Card, ImageViewer } from '@/components/ui';
 import { useAuthStore } from '@/stores';
@@ -37,31 +43,24 @@ import {
     organizationApi,
     productApi,
     saleApi,
-    auditApi,
     WarehouseResponse,
     PointResponse,
     ProductStatsResponse,
     SalesSummaryResponse,
-    AuditLogResponse,
+    ProductTrackingResponse,
 } from '@/lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-const actionConfig: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
-    PRODUCT_BATCH_CREATED: { label: 'Приход', color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10', icon: PackagePlus },
-    PRODUCT_CREATED: { label: 'Создание', color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-500/10', icon: PackagePlus },
-    PRODUCT_UPDATED: { label: 'Изменение', color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10', icon: Pencil },
-    PRODUCT_DELETED: { label: 'Удаление', color: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-500/10', icon: Trash2 },
-    PRODUCT_RESTORED: { label: 'Восстановление', color: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/10', icon: RotateCcw },
+const timelineConfig: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
+    RECEIPT: { label: 'Приход', color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10', icon: PackagePlus },
+    TRANSFER_OUT: { label: 'Отправка', color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-500/10', icon: Truck },
+    TRANSFER_IN: { label: 'Приёмка', color: 'text-indigo-600 dark:text-indigo-400', bgColor: 'bg-indigo-500/10', icon: PackageCheck },
+    SALE: { label: 'Продажа', color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-500/10', icon: ShoppingCart },
+    CREATED: { label: 'Создание', color: 'text-cyan-600 dark:text-cyan-400', bgColor: 'bg-cyan-500/10', icon: PackagePlus },
+    UPDATED: { label: 'Изменение', color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10', icon: Pencil },
+    DELETED: { label: 'Удаление', color: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-500/10', icon: Trash2 },
 };
-
-const actionFilters = [
-    { id: '', label: 'Все' },
-    { id: 'PRODUCT_BATCH_CREATED', label: 'Приходы' },
-    { id: 'PRODUCT_UPDATED', label: 'Изменения' },
-    { id: 'PRODUCT_DELETED', label: 'Удаления' },
-    { id: 'PRODUCT_RESTORED', label: 'Восстановления' },
-];
 
 export default function DashboardPage() {
     const t = useTranslations('dashboard');
@@ -79,15 +78,12 @@ export default function DashboardPage() {
     const [isLoadingSales, setIsLoadingSales] = useState(false);
     const { settings, fetchSettings } = useSettingsStore();
 
-    // History state
+    // Product tracking search state
     const [searchQuery, setSearchQuery] = useState('');
-    const [actionFilter, setActionFilter] = useState('');
-    const [historyLogs, setHistoryLogs] = useState<AuditLogResponse[]>([]);
-    const [historyLoading, setHistoryLoading] = useState(false);
-    const [historyPage, setHistoryPage] = useState(1);
-    const [historyTotalPages, setHistoryTotalPages] = useState(1);
-    const [historyError, setHistoryError] = useState<string | null>(null);
-    const [expandedLog, setExpandedLog] = useState<string | null>(null);
+    const [trackingData, setTrackingData] = useState<ProductTrackingResponse | null>(null);
+    const [trackingLoading, setTrackingLoading] = useState(false);
+    const [trackingError, setTrackingError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'timeline' | 'stock' | 'receipts' | 'transfers' | 'sales'>('timeline');
 
     // Image viewer
     const [viewerImage, setViewerImage] = useState<string | null>(null);
@@ -106,44 +102,34 @@ export default function DashboardPage() {
         }
     }, [isAuthenticated]);
 
-    const isSearching = searchQuery.trim() !== '' || actionFilter !== '';
+    const isSearching = searchQuery.trim() !== '';
 
-    useEffect(() => {
-        if (isAuthenticated && user?.accountId && isSearching) {
-            loadHistoryLogs(historyPage, actionFilter);
-        }
-    }, [isAuthenticated, user?.accountId, actionFilter, historyPage, isSearching]);
-
-    const loadHistoryLogs = async (p: number, action?: string) => {
-        if (!user?.accountId) return;
-        setHistoryLoading(true);
-        setHistoryError(null);
+    const handleSearchSubmit = async () => {
+        const q = searchQuery.trim();
+        if (!q) return;
+        setTrackingLoading(true);
+        setTrackingError(null);
+        setTrackingData(null);
         try {
-            const data = await auditApi.getByAccount(user.accountId, {
-                page: p,
-                limit: 50,
-                entityType: 'PRODUCT',
-                action: action || undefined,
-            });
-            setHistoryLogs(data.items);
-            setHistoryTotalPages(data.totalPages);
-            setHistoryPage(p);
+            const data = await productApi.trackBySku(q);
+            setTrackingData(data);
         } catch (err: any) {
-            setHistoryError(err?.response?.data?.message || 'Ошибка загрузки истории');
-            console.error(err);
+            setTrackingError(err?.response?.data?.message || 'Ошибка поиска');
         } finally {
-            setHistoryLoading(false);
+            setTrackingLoading(false);
         }
+    };
+
+    const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') handleSearchSubmit();
     };
 
     const handleSearchChange = (val: string) => {
         setSearchQuery(val);
-        setHistoryPage(1);
-    };
-
-    const handleFilterChange = (val: string) => {
-        setActionFilter(val);
-        setHistoryPage(1);
+        if (!val.trim()) {
+            setTrackingData(null);
+            setTrackingError(null);
+        }
     };
 
     const loadData = async () => {
@@ -198,7 +184,6 @@ export default function DashboardPage() {
 
     const isOrganizer = user?.role === 'ORGANIZER';
 
-    // History helpers
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString('ru-RU', {
             day: '2-digit',
@@ -209,67 +194,13 @@ export default function DashboardPage() {
         });
     };
 
-    const filteredLogs = historyLogs.filter(log => {
-        if (!searchQuery.trim()) return true;
-        const nd = log.newData || {};
-        const od = log.oldData || {};
-        const search = searchQuery.toLowerCase();
-        return (
-            String(nd.sku || '').toLowerCase().includes(search) ||
-            String(od.sku || '').toLowerCase().includes(search) ||
-            (log.userName || '').toLowerCase().includes(search)
-        );
-    });
-
-    const getDisplayData = (log: AuditLogResponse) => {
-        const d = log.action === 'PRODUCT_DELETED' ? log.oldData : log.newData;
-        return d || {};
-    };
-
-    const getPhotoUrl = (log: AuditLogResponse) => {
-        const d = getDisplayData(log);
-        const photoOrig = d.photoOriginal ? `${API_URL}${d.photoOriginal}` : null;
-        const photo = d.photo ? `${API_URL}${d.photo}` : null;
-        return photoOrig || photo;
-    };
-
-    const renderChanges = (log: AuditLogResponse) => {
-        if (log.action !== 'PRODUCT_UPDATED') return null;
-        const oldD = log.oldData || {};
-        const newD = log.newData || {};
-        const fieldLabels: Record<string, string> = {
-            sku: 'Артикул',
-            boxCount: 'Коробок',
-            pairCount: 'Пар',
-            priceYuan: 'Цена ¥',
-            priceRub: 'Цена ₽',
-            totalYuan: 'Сумма ¥',
-            totalRub: 'Сумма ₽',
-            recommendedSalePrice: 'Рек. цена',
-            totalRecommendedSale: 'Итого рек.',
-            sizeRange: 'Размерный ряд',
-            barcode: 'Баркод',
-            isActive: 'Активен',
-            photo: 'Фото',
-            photoOriginal: 'Фото оригинал',
-        };
-
-        return (
-            <div className="mt-2 space-y-1">
-                {Object.keys(newD).map(key => {
-                    const label = fieldLabels[key] || key;
-                    return (
-                        <div key={key} className="flex items-center gap-2 text-[11px]">
-                            <span className="text-muted-foreground w-24 flex-shrink-0">{label}:</span>
-                            <span className="line-through text-red-500/70">{String(oldD[key] ?? '—')}</span>
-                            <span className="text-muted-foreground">→</span>
-                            <span className="text-green-600 dark:text-green-400 font-medium">{String(newD[key] ?? '—')}</span>
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    };
+    const trackingTabs = [
+        { id: 'timeline' as const, label: 'Хронология', icon: History },
+        { id: 'stock' as const, label: 'Остатки', icon: BarChart3 },
+        { id: 'receipts' as const, label: 'Приходы', icon: PackagePlus },
+        { id: 'transfers' as const, label: 'Заявки', icon: Truck },
+        { id: 'sales' as const, label: 'Продажи', icon: ShoppingCart },
+    ];
 
     return (
         <div className="space-y-8">
@@ -290,263 +221,279 @@ export default function DashboardPage() {
             {/* Dashboard Search */}
             {isOrganizer && (
                 <Card className="p-4 space-y-3">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <input
-                            value={searchQuery}
-                            onChange={(e) => handleSearchChange(e.target.value)}
-                            placeholder="Поиск по артикулу, пользователю..."
-                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                        />
-                    </div>
-                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-                        {actionFilters.map(f => (
-                            <button
-                                key={f.id}
-                                onClick={() => handleFilterChange(f.id)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${actionFilter === f.id
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                    }`}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
+                    <div className="relative flex gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <input
+                                value={searchQuery}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                                onKeyDown={handleSearchKeyDown}
+                                placeholder="Введите артикул и нажмите Enter..."
+                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                            />
+                        </div>
+                        <Button onClick={handleSearchSubmit} disabled={!searchQuery.trim() || trackingLoading} size="sm" className="px-4">
+                            {trackingLoading ? (
+                                <motion.div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} />
+                            ) : (
+                                <Search className="h-4 w-4" />
+                            )}
+                        </Button>
                     </div>
                 </Card>
             )}
 
-            {isSearching && isOrganizer ? (
-                /* History Results View */
-                <div className="space-y-6">
-                    {historyLoading && (
-                        <div className="flex justify-center p-12">
-                            <motion.div
-                                className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full"
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                            />
-                        </div>
-                    )}
-
-                    {!historyLoading && historyError && (
-                        <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
-                            {historyError}
-                        </div>
-                    )}
-
-                    {!historyLoading && !historyError && filteredLogs.length === 0 && (
-                        <Card className="p-12 text-center">
-                            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                                <Inbox className="h-8 w-8 text-primary" />
+            {isSearching && isOrganizer && trackingData ? (
+                /* Tracking Results View */
+                <div className="space-y-4">
+                    {/* Product info header */}
+                    {trackingData.products.length > 0 && (
+                        <Card className="p-4">
+                            <div className="flex items-center gap-3">
+                                {(() => {
+                                    const p = trackingData.products[0];
+                                    const photoUrl = p.photoOriginal ? `${API_URL}${p.photoOriginal}` : p.photo ? `${API_URL}${p.photo}` : null;
+                                    return (
+                                        <>
+                                            <div className="w-14 h-14 flex-shrink-0">
+                                                {photoUrl ? (
+                                                    <div className="w-14 h-14 rounded-xl overflow-hidden border border-border cursor-pointer" onClick={() => { setViewerImage(photoUrl); setViewerAlt(p.sku); }}>
+                                                        <img src={photoUrl} alt={p.sku} className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center">
+                                                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-lg font-bold">{p.sku}</h3>
+                                                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
+                                                    {p.sizeRange && <span>Размеры: {p.sizeRange}</span>}
+                                                    <span>¥{p.priceYuan.toLocaleString()}</span>
+                                                    <span>₽{p.priceRub.toLocaleString()}</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right text-xs">
+                                                <div className="text-muted-foreground">Найдено записей</div>
+                                                <div className="text-lg font-bold">{trackingData.products.length}</div>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
-                            <h3 className="text-lg font-semibold mb-2">
-                                Вы ничего не нашли
-                            </h3>
-                            <p className="text-muted-foreground">
-                                Попробуйте изменить параметры поиска
-                            </p>
                         </Card>
                     )}
 
-                    {!historyLoading && filteredLogs.length > 0 && (
-                        <div className="space-y-2">
-                            {filteredLogs.map((log, index) => {
-                                const config = actionConfig[log.action] || actionConfig['PRODUCT_CREATED'];
-                                const Icon = config.icon;
-                                const d = getDisplayData(log);
-                                const photoUrl = getPhotoUrl(log);
-                                const isExpanded = expandedLog === log.id;
+                    {/* Tabs */}
+                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                        {trackingTabs.map(tab => {
+                            const TabIcon = tab.icon;
+                            const count = tab.id === 'timeline' ? trackingData.timeline.length
+                                : tab.id === 'stock' ? trackingData.currentStock.length
+                                : tab.id === 'receipts' ? trackingData.receipts.length
+                                : tab.id === 'transfers' ? trackingData.transfers.length
+                                : trackingData.sales.length;
+                            return (
+                                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+                                    <TabIcon className="h-3.5 w-3.5" />
+                                    {tab.label} ({count})
+                                </button>
+                            );
+                        })}
+                    </div>
 
-                                return (
-                                    <motion.div
-                                        key={log.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.02 }}
-                                    >
-                                        <Card className="overflow-hidden">
-                                            <button
-                                                className="w-full p-3 text-left hover:bg-muted/30 transition-colors"
-                                                onClick={() => setExpandedLog(isExpanded ? null : log.id)}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {/* Photo */}
-                                                    <div className="w-10 h-10 flex-shrink-0">
-                                                        {photoUrl ? (
-                                                            <div
-                                                                className="w-10 h-10 rounded-lg overflow-hidden border border-border cursor-pointer"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setViewerImage(photoUrl);
-                                                                    setViewerAlt(d.sku || '');
-                                                                }}
-                                                            >
-                                                                <img src={photoUrl} alt={d.sku || ''} className="w-full h-full object-cover" />
+                    {/* Tab Content */}
+                    {activeTab === 'timeline' && (
+                        <div className="space-y-0">
+                            {trackingData.timeline.length === 0 ? (
+                                <Card className="p-8 text-center"><p className="text-muted-foreground">Нет событий</p></Card>
+                            ) : (
+                                <div className="relative pl-6">
+                                    <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-border" />
+                                    {trackingData.timeline.map((event, i) => {
+                                        const cfg = timelineConfig[event.type] || timelineConfig['CREATED'];
+                                        const Icon = cfg.icon;
+                                        return (
+                                            <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
+                                                className="relative mb-3">
+                                                <div className={`absolute -left-6 top-3 w-5 h-5 rounded-full flex items-center justify-center ${cfg.bgColor} ring-2 ring-background`}>
+                                                    <Icon className={`h-2.5 w-2.5 ${cfg.color}`} />
+                                                </div>
+                                                <Card className="p-3 ml-2">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${cfg.bgColor} ${cfg.color}`}>{cfg.label}</span>
+                                                                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                                                                    <Clock className="h-2.5 w-2.5" />{formatDate(event.date)}
+                                                                </span>
                                                             </div>
-                                                        ) : (
-                                                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Info */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-0.5">
-                                                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${config.bgColor} ${config.color}`}>
-                                                                <Icon className="h-3 w-3" />
-                                                                {config.label}
-                                                            </span>
-                                                            <span className="font-semibold text-xs truncate">{d.sku || '—'}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                                                            <span className="flex items-center gap-0.5">
-                                                                <Clock className="h-2.5 w-2.5" />
-                                                                {formatDate(log.createdAt)}
-                                                            </span>
-                                                            <span className="flex items-center gap-0.5">
-                                                                <User className="h-2.5 w-2.5" />
-                                                                {log.userName || 'Неизвестный'}
-                                                            </span>
-                                                            {log.metadata?.pointName && (
-                                                                <span className="flex items-center gap-0.5 text-blue-500">
-                                                                    <MapPin className="h-2.5 w-2.5" />
-                                                                    {log.metadata.pointName}
+                                                            <p className="text-xs font-medium">{event.description}</p>
+                                                            {event.pointName && (
+                                                                <span className="text-[10px] text-blue-500 flex items-center gap-0.5 mt-0.5">
+                                                                    <MapPin className="h-2.5 w-2.5" />{event.pointName}
                                                                 </span>
                                                             )}
                                                         </div>
+                                                        <div className="text-right text-[10px] flex-shrink-0">
+                                                            {event.pairCount != null && <div className="text-muted-foreground">{event.pairCount} пар</div>}
+                                                            {event.boxCount != null && <div className="text-muted-foreground">{event.boxCount} кор.</div>}
+                                                        </div>
                                                     </div>
-
-                                                    {/* Summary & Expand */}
-                                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                                        {log.action !== 'PRODUCT_UPDATED' && d.pairCount != null && (
-                                                            <div className="text-right text-[10px] hidden sm:block">
-                                                                <div className="text-muted-foreground">{d.pairCount} пар</div>
-                                                                {d.totalRub != null && (
-                                                                    <div className="font-medium text-green-600 dark:text-green-400">₽{Number(d.totalRub).toLocaleString()}</div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                        {isExpanded ? (
-                                                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                                                        ) : (
-                                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </button>
-
-                                            {/* Expanded detail */}
-                                            {isExpanded && (
-                                                <motion.div
-                                                    initial={{ height: 0, opacity: 0 }}
-                                                    animate={{ height: 'auto', opacity: 1 }}
-                                                    exit={{ height: 0, opacity: 0 }}
-                                                    transition={{ duration: 0.2 }}
-                                                    className="overflow-hidden"
-                                                >
-                                                    <div className="border-t border-border/50 px-4 py-3 text-xs space-y-2">
-                                                        {log.action === 'PRODUCT_UPDATED' ? (
-                                                            renderChanges(log)
-                                                        ) : (
-                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                                                {d.boxCount != null && (
-                                                                    <div className="text-center p-2 rounded-lg bg-muted/50">
-                                                                        <span className="text-muted-foreground block text-[10px]">Коробок</span>
-                                                                        <span className="font-bold">{d.boxCount}</span>
-                                                                    </div>
-                                                                )}
-                                                                {d.pairCount != null && (
-                                                                    <div className="text-center p-2 rounded-lg bg-muted/50">
-                                                                        <span className="text-muted-foreground block text-[10px]">Пар</span>
-                                                                        <span className="font-bold">{d.pairCount}</span>
-                                                                    </div>
-                                                                )}
-                                                                {d.priceYuan != null && (
-                                                                    <div className="text-center p-2 rounded-lg bg-blue-500/5">
-                                                                        <span className="text-muted-foreground block text-[10px]">Цена ¥</span>
-                                                                        <span className="font-bold text-blue-600 dark:text-blue-400">{Number(d.priceYuan).toLocaleString()}</span>
-                                                                    </div>
-                                                                )}
-                                                                {d.priceRub != null && (
-                                                                    <div className="text-center p-2 rounded-lg bg-green-500/5">
-                                                                        <span className="text-muted-foreground block text-[10px]">Цена ₽</span>
-                                                                        <span className="font-bold text-green-600 dark:text-green-400">{Number(d.priceRub).toLocaleString()}</span>
-                                                                    </div>
-                                                                )}
-                                                                {d.totalYuan != null && (
-                                                                    <div className="text-center p-2 rounded-lg bg-blue-500/5">
-                                                                        <span className="text-muted-foreground block text-[10px]">Сумма ¥</span>
-                                                                        <span className="font-bold text-blue-600 dark:text-blue-400">{Number(d.totalYuan).toLocaleString()}</span>
-                                                                    </div>
-                                                                )}
-                                                                {d.totalRub != null && (
-                                                                    <div className="text-center p-2 rounded-lg bg-green-500/5">
-                                                                        <span className="text-muted-foreground block text-[10px]">Сумма ₽</span>
-                                                                        <span className="font-bold text-green-600 dark:text-green-400">{Number(d.totalRub).toLocaleString()}</span>
-                                                                    </div>
-                                                                )}
-                                                                {d.recommendedSalePrice != null && Number(d.recommendedSalePrice) > 0 && (
-                                                                    <div className="text-center p-2 rounded-lg bg-orange-500/5">
-                                                                        <span className="text-muted-foreground block text-[10px]">Рек. цена</span>
-                                                                        <span className="font-bold text-orange-600 dark:text-orange-400">{Number(d.recommendedSalePrice).toLocaleString()}</span>
-                                                                    </div>
-                                                                )}
-                                                                {d.totalRecommendedSale != null && Number(d.totalRecommendedSale) > 0 && (
-                                                                    <div className="text-center p-2 rounded-lg bg-orange-500/5">
-                                                                        <span className="text-muted-foreground block text-[10px]">Итого рек.</span>
-                                                                        <span className="font-bold text-orange-600 dark:text-orange-400">{Number(d.totalRecommendedSale).toLocaleString()}</span>
-                                                                    </div>
-                                                                )}
-                                                                {d.sizeRange && (
-                                                                    <div className="text-center p-2 rounded-lg bg-muted/50">
-                                                                        <span className="text-muted-foreground block text-[10px]">Размеры</span>
-                                                                        <span className="font-bold">{d.sizeRange}</span>
-                                                                    </div>
-                                                                )}
-                                                                {d.barcode && (
-                                                                    <div className="text-center p-2 rounded-lg bg-muted/50">
-                                                                        <span className="text-muted-foreground block text-[10px]">Баркод</span>
-                                                                        <span className="font-bold truncate">{d.barcode}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </Card>
-                                    </motion.div>
-                                );
-                            })}
+                                                </Card>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {!historyLoading && historyTotalPages > 1 && (
-                        <div className="flex items-center justify-center gap-3">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={historyPage <= 1}
-                                onClick={() => setHistoryPage(historyPage - 1)}
-                            >
-                                Назад
-                            </Button>
-                            <span className="text-sm text-muted-foreground">
-                                {historyPage} / {historyTotalPages}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={historyPage >= historyTotalPages}
-                                onClick={() => setHistoryPage(historyPage + 1)}
-                            >
-                                Далее
-                            </Button>
+                    {activeTab === 'stock' && (
+                        <div className="space-y-2">
+                            {trackingData.currentStock.length === 0 ? (
+                                <Card className="p-8 text-center"><p className="text-muted-foreground">Нет остатков на складах</p></Card>
+                            ) : (
+                                trackingData.currentStock.map((s, i) => (
+                                    <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                                        <Card className="p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-lg ${s.warehouseType === 'SHOP' ? 'bg-purple-500/10 text-purple-600' : 'bg-green-500/10 text-green-600'}`}>
+                                                        {s.warehouseType === 'SHOP' ? <Store className="h-5 w-5" /> : <Warehouse className="h-5 w-5" />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-sm">{s.warehouseName}</p>
+                                                        <p className="text-[11px] text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{s.pointName}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-lg font-bold">{s.pairCount} <span className="text-xs text-muted-foreground">пар</span></p>
+                                                    <p className="text-xs text-muted-foreground">{s.boxCount} кор.</p>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    </motion.div>
+                                ))
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'receipts' && (
+                        <div className="space-y-2">
+                            {trackingData.receipts.length === 0 ? (
+                                <Card className="p-8 text-center"><p className="text-muted-foreground">Нет приходов</p></Card>
+                            ) : (
+                                trackingData.receipts.map((r, i) => (
+                                    <motion.div key={r.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                                        <Card className="p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600">#{r.receiptNumber}</span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${r.status === 'COMPLETED' ? 'bg-green-500/10 text-green-600' : 'bg-yellow-500/10 text-yellow-600'}`}>{r.status}</span>
+                                                    </div>
+                                                    <p className="text-xs font-medium">{r.pointName}</p>
+                                                    {r.supplierName && <p className="text-[10px] text-muted-foreground">Поставщик: {r.supplierName}</p>}
+                                                    <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(r.createdAt)}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-bold text-sm">₽{r.totalAmount.toLocaleString()}</p>
+                                                    <p className="text-[11px] text-muted-foreground">{r.quantity} шт.</p>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    </motion.div>
+                                ))
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'transfers' && (
+                        <div className="space-y-2">
+                            {trackingData.transfers.length === 0 ? (
+                                <Card className="p-8 text-center"><p className="text-muted-foreground">Нет заявок</p></Card>
+                            ) : (
+                                trackingData.transfers.map((t, i) => (
+                                    <motion.div key={t.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                                        <Card className="p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600">#{t.transferNumber}</span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${t.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-600' : t.status === 'SENT' ? 'bg-blue-500/10 text-blue-600' : t.status === 'CANCELLED' ? 'bg-red-500/10 text-red-600' : 'bg-yellow-500/10 text-yellow-600'}`}>{t.status}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-xs">
+                                                        <span className="font-medium">{t.fromPointName}</span>
+                                                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                                        <span className="font-medium">{t.toPointName}</span>
+                                                    </div>
+                                                    <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(t.createdAt)}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-bold text-sm">{t.pairCount} пар</p>
+                                                    <p className="text-[11px] text-muted-foreground">{t.boxCount} кор.</p>
+                                                    <p className="text-[10px] text-green-600">₽{t.totalRub.toLocaleString()}</p>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    </motion.div>
+                                ))
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'sales' && (
+                        <div className="space-y-2">
+                            {trackingData.sales.length === 0 ? (
+                                <Card className="p-8 text-center"><p className="text-muted-foreground">Нет продаж</p></Card>
+                            ) : (
+                                trackingData.sales.map((s, i) => (
+                                    <motion.div key={s.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                                        <Card className="p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600">#{s.saleNumber}</span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${s.status === 'COMPLETED' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>{s.status}</span>
+                                                    </div>
+                                                    <p className="text-xs font-medium">{s.shopName}</p>
+                                                    <p className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{s.pointName}</p>
+                                                    <p className="text-[10px] text-muted-foreground mt-0.5">{formatDate(s.createdAt)}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-bold text-sm text-green-600">₽{s.totalActual.toLocaleString()}</p>
+                                                    <p className="text-[11px] text-muted-foreground">{s.pairCount} пар / {s.boxCount} кор.</p>
+                                                    <p className="text-[10px] text-emerald-600">Прибыль: ₽{s.profit.toLocaleString()}</p>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    </motion.div>
+                                ))
+                            )}
                         </div>
                     )}
                 </div>
+            ) : isSearching && isOrganizer && trackingLoading ? (
+                <div className="flex justify-center p-12">
+                    <motion.div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} />
+                </div>
+            ) : isSearching && isOrganizer && trackingError ? (
+                <Card className="p-8 text-center">
+                    <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                        <Inbox className="h-8 w-8 text-destructive" />
+                    </div>
+                    <p className="text-destructive text-sm">{trackingError}</p>
+                </Card>
+            ) : isSearching && isOrganizer ? (
+                <Card className="p-8 text-center">
+                    <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                        <Search className="h-8 w-8 text-primary" />
+                    </div>
+                    <p className="text-muted-foreground">Нажмите Enter или кнопку поиска</p>
+                </Card>
             ) : (
                 /* Stats and Everything Else */
                 <div className="space-y-8">
