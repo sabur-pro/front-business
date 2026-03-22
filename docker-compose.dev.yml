@@ -1,0 +1,22 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mybusiness-front-dev
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      - NODE_ENV=development
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - mybusiness-dev-network
+
+networks:
+  mybusiness-dev-network:
+    driver: bridge
