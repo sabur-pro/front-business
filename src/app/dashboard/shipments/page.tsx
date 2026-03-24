@@ -12,6 +12,7 @@ import {
     Clock,
     CheckCircle2,
     XCircle,
+    ChevronLeft,
     ChevronRight,
     Filter,
     Calendar,
@@ -101,6 +102,12 @@ export default function ShipmentsPage() {
             minute: '2-digit',
         });
     };
+
+    // Build all page numbers (no ellipsis)
+    const allPageNumbers: number[] = [];
+    for (let i = 1; i <= totalPages; i++) {
+        allPageNumbers.push(i);
+    }
 
     if (authLoading || !isAuthenticated) {
         return (
@@ -288,26 +295,20 @@ export default function ShipmentsPage() {
 
                     {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="flex items-center justify-center gap-2 pt-4">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={page <= 1}
-                                onClick={() => setPage(p => p - 1)}
-                            >
-                                Назад
-                            </Button>
-                            <span className="text-sm text-muted-foreground">
-                                {page} / {totalPages}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={page >= totalPages}
-                                onClick={() => setPage(p => p + 1)}
-                            >
-                                Далее
-                            </Button>
+                        <div className="overflow-x-auto pt-4">
+                            <div className="flex items-center justify-center gap-1 min-w-max py-1 px-1">
+                                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                {allPageNumbers.map((p) => (
+                                    <Button key={p} variant={p === page ? 'default' : 'outline'} size="sm" className="min-w-[36px]" onClick={() => setPage(p)}>
+                                        {p}
+                                    </Button>
+                                ))}
+                                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </div>
