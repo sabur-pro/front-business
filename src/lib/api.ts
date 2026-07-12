@@ -459,6 +459,11 @@ export const productApi = {
         return response.data;
     },
 
+    checkExisting: async (pointId: string, skus: string[]) => {
+        const response = await api.post<CheckExistingSkusResponse>('/products/check-existing', { pointId, skus });
+        return response.data;
+    },
+
     getAll: async () => {
         const response = await api.get<ProductResponse[]>('/products');
         return response.data;
@@ -774,6 +779,21 @@ export interface BatchProductItem {
     actualSalePrice?: number;
     totalActualSale?: number;
     barcode?: string;
+    /** create — создать новый товар (по умолчанию); restock — повторный приход (пополнить существующий) */
+    mode?: 'create' | 'restock';
+}
+
+export interface ExistingSku {
+    sku: string;
+    productId: string;
+    warehouseName: string;
+    boxCount: number;
+    pairCount: number;
+    priceRub: number;
+}
+
+export interface CheckExistingSkusResponse {
+    existing: ExistingSku[];
 }
 
 export interface BatchCreateProductsData {
@@ -787,6 +807,8 @@ export interface BatchCreateProductsData {
 export interface BatchCreateProductsResponse {
     products: ProductResponse[];
     count: number;
+    createdCount: number;
+    restockedCount: number;
 }
 
 // Upload API

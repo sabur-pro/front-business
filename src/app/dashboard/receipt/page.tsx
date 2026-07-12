@@ -16,6 +16,8 @@ import {
     ChevronDown,
     FileSpreadsheet,
     AlertCircle,
+    AlertTriangle,
+    RotateCcw,
     Camera,
     History,
 } from 'lucide-react';
@@ -26,6 +28,7 @@ import {
     uploadApi,
     PointResponse,
     BatchProductItem,
+    ExistingSku,
 } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -50,6 +53,8 @@ interface ProductRow {
     actualSalePrice: number;
     totalActualSale: number;
     barcode: string;
+    // Решение для существующего товара: create — новый, restock — повторный приход, skip — пропустить
+    receiptMode: 'create' | 'restock' | 'skip';
 }
 
 const emptyRow = (): ProductRow => ({
@@ -71,6 +76,7 @@ const emptyRow = (): ProductRow => ({
     actualSalePrice: 0,
     totalActualSale: 0,
     barcode: '',
+    receiptMode: 'create',
 });
 
 export default function ReceiptPage() {
@@ -85,6 +91,10 @@ export default function ReceiptPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+
+    // Existing products detection (повторный приход)
+    const [existingMap, setExistingMap] = useState<Record<string, ExistingSku>>({});
+    const [reviewNotice, setReviewNotice] = useState<string | null>(null);
 
     // Supplier & payment
     const [supplierId, setSupplierId] = useState<string | null>(null);
@@ -129,6 +139,12 @@ export default function ReceiptPage() {
         setRows(prev => prev.map(row => {
             if (row.id !== id) return row;
             const updated = { ...row, [field]: value };
+
+            // Changing the SKU invalidates any previous "existing product" decision
+            if (field === 'sku') {
+                updated.receiptMode = 'create';
+                setReviewNotice(null);
+            }
 
             // Auto-calculate pairs if boxCount changes (1 box = 8 pairs)
             if (field === 'boxCount') {
@@ -269,6 +285,7 @@ export default function ReceiptPage() {
                         actualSalePrice: 0,
                         totalActualSale: 0,
                         barcode: '',
+                        receiptMode: 'create',
                     });
                 }
 
@@ -279,6 +296,8 @@ export default function ReceiptPage() {
                 }
 
                 setRows(parsedRows);
+                setExistingMap({});
+                setReviewNotice(null);
                 let info = `Загружено ${parsedRows.length} товаров из файла`;
                 if (skipped > 0) info += ` (пропущено ${skipped} пустых строк)`;
                 if (invalidSkus.length > 0) info += `. Пропущено ${invalidSkus.length} с невалидным артикулом (не A/B): ${invalidSkus.slice(0, 5).join(', ')}${invalidSkus.length > 5 ? '...' : ''}`;
@@ -317,10 +336,46 @@ export default function ReceiptPage() {
         setIsSubmitting(true);
 
         try {
-            // Upload photos first
+            // 1. Проверяем, какие артикулы уже есть на складе
+            const skus = validRows.map(r => r.sku.trim());
+            const { existing } = await productApi.checkExisting(selectedPointId, skus);
+            const map: Record<string, ExistingSku> = {};
+            existing.forEach(e => { map[e.sku.trim()] = e; });
+            setExistingMap(map);
+
+            // Строки, для которых найден существующий товар и решение ещё не принято
+            const existingRows = validRows.filter(r => map[r.sku.trim()]);
+            const unresolved = existingRows.filter(r => r.receiptMode !== 'restock' && r.receiptMode !== 'skip');
+
+            // 2. Если есть новые пересечения — не сохраняем, показываем обзор
+            if (existingRows.length > 0 && unresolved.length > 0) {
+                setRows(prev => prev.map(r => {
+                    if (map[r.sku.trim()] && r.receiptMode !== 'restock' && r.receiptMode !== 'skip') {
+                        return { ...r, receiptMode: 'restock' };
+                    }
+                    return r;
+                }));
+                setReviewNotice(
+                    `Найдено товаров, которые уже есть на складе: ${existingRows.length}. ` +
+                    `По умолчанию для них выбран «Повторный приход» (пополнение остатка). ` +
+                    `Проверьте отметки у товаров ниже (⚠) и нажмите «Оформить приход» ещё раз.`
+                );
+                setIsSubmitting(false);
+                return;
+            }
+
+            // 3. Пропускаем строки, помеченные «Пропустить»
+            const rowsToSubmit = validRows.filter(r => !(map[r.sku.trim()] && r.receiptMode === 'skip'));
+            if (rowsToSubmit.length === 0) {
+                setError('Все товары помечены как «Пропустить» — нечего оформлять');
+                setIsSubmitting(false);
+                return;
+            }
+
+            // 4. Загружаем фото и собираем позиции
             const items: BatchProductItem[] = [];
 
-            for (const row of validRows) {
+            for (const row of rowsToSubmit) {
                 let photoOriginalUrl: string | undefined;
                 let photoUrl: string | undefined;
 
@@ -333,8 +388,9 @@ export default function ReceiptPage() {
                     photoUrl = uploaded.url;
                 }
 
+                const isExisting = !!map[row.sku.trim()];
                 items.push({
-                    sku: row.sku,
+                    sku: row.sku.trim(),
                     photoOriginal: photoOriginalUrl,
                     photo: photoUrl,
                     sizeRange: row.sizeRange || undefined,
@@ -349,6 +405,7 @@ export default function ReceiptPage() {
                     actualSalePrice: 0,
                     totalActualSale: 0,
                     barcode: row.barcode || undefined,
+                    mode: isExisting && row.receiptMode === 'restock' ? 'restock' : 'create',
                 });
             }
 
@@ -359,8 +416,13 @@ export default function ReceiptPage() {
                 items,
             });
 
-            setSuccess(`Приход оформлен! Добавлено товаров: ${result.count}`);
+            const parts: string[] = [];
+            if (result.createdCount) parts.push(`добавлено новых: ${result.createdCount}`);
+            if (result.restockedCount) parts.push(`повторный приход (пополнено): ${result.restockedCount}`);
+            setSuccess(`Приход оформлен! ${parts.join(', ') || `Позиций: ${result.count}`}`);
             setRows([emptyRow()]);
+            setExistingMap({});
+            setReviewNotice(null);
             setSupplierId(null);
             setSupplierPaidAmount(0);
         } catch (err: any) {
@@ -376,6 +438,11 @@ export default function ReceiptPage() {
     const grandTotalYuan = rows.reduce((sum, r) => sum + (r.totalYuan || 0), 0);
     const grandTotalRub = rows.reduce((sum, r) => sum + (r.totalRub || 0), 0);
     const grandTotalRecommended = rows.reduce((sum, r) => sum + (r.totalRecommendedSale || 0), 0);
+
+    // Existing products (для нумерации значков ⚠ и подсчёта)
+    const existingRowSkus = rows.filter(r => r.sku.trim() && existingMap[r.sku.trim()]).map(r => r.sku.trim());
+    const restockCount = rows.filter(r => r.sku.trim() && existingMap[r.sku.trim()] && r.receiptMode === 'restock').length;
+    const skipCount = rows.filter(r => r.sku.trim() && existingMap[r.sku.trim()] && r.receiptMode === 'skip').length;
 
     if (isLoading) {
         return (
@@ -434,6 +501,22 @@ export default function ReceiptPage() {
                         </button>
                     </motion.div>
                 )}
+                {reviewNotice && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="p-4 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-start justify-between gap-3"
+                    >
+                        <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                            <span className="text-sm">{reviewNotice}</span>
+                        </div>
+                        <button onClick={() => setReviewNotice(null)} className="flex-shrink-0">
+                            <X className="h-4 w-4" />
+                        </button>
+                    </motion.div>
+                )}
             </AnimatePresence>
 
             {/* Point Selection */}
@@ -445,7 +528,13 @@ export default function ReceiptPage() {
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <select
                             value={selectedPointId}
-                            onChange={(e) => setSelectedPointId(e.target.value)}
+                            onChange={(e) => {
+                                setSelectedPointId(e.target.value);
+                                // Warehouse changes with the point → existing-product info is no longer valid
+                                setExistingMap({});
+                                setReviewNotice(null);
+                                setRows(prev => prev.map(r => ({ ...r, receiptMode: 'create' })));
+                            }}
                             className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-border bg-background text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                         >
                             <option value="">Выберите точку...</option>
@@ -581,17 +670,29 @@ export default function ReceiptPage() {
                         </Button>
                     </div>
 
-                    {rows.map((row, index) => (
+                    {rows.map((row, index) => {
+                        const trimmedSku = row.sku.trim();
+                        const ex = trimmedSku ? existingMap[trimmedSku] : undefined;
+                        const existingNumber = ex ? existingRowSkus.indexOf(trimmedSku) + 1 : 0;
+                        return (
                         <motion.div
                             key={row.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.02 }}
                         >
-                            <Card className="p-3 space-y-2.5">
+                            <Card className={`p-3 space-y-2.5 ${ex ? (row.receiptMode === 'skip' ? 'border-muted-foreground/40 opacity-70' : 'border-amber-400/50 ring-1 ring-amber-400/30') : ''}`}>
                                 {/* Header: # + delete */}
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">#{index + 1}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">#{index + 1}</span>
+                                        {ex && (
+                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                                <AlertTriangle className="h-3 w-3" />
+                                                №{existingNumber} уже на складе
+                                            </span>
+                                        )}
+                                    </div>
                                     {rows.length > 1 && (
                                         <button className="p-1 rounded hover:bg-destructive/10 text-destructive transition-colors" onClick={() => removeRow(row.id)}>
                                             <Trash2 className="h-3.5 w-3.5" />
@@ -702,9 +803,49 @@ export default function ReceiptPage() {
                                     </div>
                                 </div>
 
+                                {/* Существующий товар — выбор действия (повторный приход / пропустить) */}
+                                {ex && (
+                                    <div className="rounded-lg border border-amber-400/40 bg-amber-500/5 p-2.5 space-y-2">
+                                        <div className="flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                                            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                                            <span>
+                                                Товар <b>{ex.sku}</b> уже есть на складе «{ex.warehouseName}»: <b>{ex.pairCount}</b> пар ({ex.boxCount} кор.), цена {ex.priceRub.toLocaleString()} ₽. Выберите действие:
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => updateRow(row.id, 'receiptMode', 'restock')}
+                                                className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-medium border transition-colors ${row.receiptMode === 'restock' ? 'bg-amber-500/20 border-amber-500 text-amber-700 dark:text-amber-300' : 'border-border bg-background text-muted-foreground hover:bg-muted/50'}`}
+                                            >
+                                                <RotateCcw className="h-3.5 w-3.5" />
+                                                Повторный приход
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateRow(row.id, 'receiptMode', 'skip')}
+                                                className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-medium border transition-colors ${row.receiptMode === 'skip' ? 'bg-muted-foreground/20 border-muted-foreground text-foreground' : 'border-border bg-background text-muted-foreground hover:bg-muted/50'}`}
+                                            >
+                                                <X className="h-3.5 w-3.5" />
+                                                Пропустить
+                                            </button>
+                                        </div>
+                                        {row.receiptMode === 'restock' && (
+                                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                                                После пополнения станет: <b>{ex.pairCount + (row.pairCount || 0)}</b> пар
+                                                ({ex.boxCount + (row.boxCount || 0)} кор.) — прибавим +{row.pairCount || 0} пар.
+                                            </p>
+                                        )}
+                                        {row.receiptMode === 'skip' && (
+                                            <p className="text-[10px] text-muted-foreground">Этот товар не будет сохранён.</p>
+                                        )}
+                                    </div>
+                                )}
+
                             </Card>
                         </motion.div>
-                    ))}
+                        );
+                    })}
 
                     {/* Summary */}
                     <Card className="p-4 bg-primary/5 border-primary/20">
@@ -732,6 +873,20 @@ export default function ReceiptPage() {
                             </div>
                         </div>
                     </Card>
+
+                    {/* Existing summary */}
+                    {existingRowSkus.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2 text-xs px-1">
+                            <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Уже на складе: {existingRowSkus.length}
+                            </span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">Повторный приход: {restockCount}</span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground">Пропустить: {skipCount}</span>
+                        </div>
+                    )}
 
                     {/* Submit */}
                     <div className="flex gap-3">
