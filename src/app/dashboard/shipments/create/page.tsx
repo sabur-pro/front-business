@@ -344,6 +344,9 @@ export default function CreateShipmentPage() {
                 )}
             </AnimatePresence>
 
+            {/* Layout: форма слева, фиксированный блок действий справа */}
+            <div className={`grid gap-6 items-start ${selectedProducts.length > 0 ? 'lg:grid-cols-[1fr_360px]' : 'grid-cols-1'}`}>
+                <div className="space-y-6 min-w-0">
             {/* FROM: Sender Point */}
             <Card className="p-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -657,47 +660,57 @@ export default function CreateShipmentPage() {
                             )}
                         </div>
                     </div>
-
-                    {/* Note */}
-                    <div className="mt-4">
-                        <label className="block text-sm font-medium mb-2">Комментарий (необязательно)</label>
-                        <textarea
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            placeholder="Примечание к отправке..."
-                            rows={2}
-                            className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
-                        />
-                    </div>
                 </Card>
             )}
 
-            {/* Summary + Submit */}
-            {selectedProducts.length > 0 && (
-                <Card className="p-6">
-                    <h2 className="text-lg font-semibold mb-4">Итого</h2>
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div className="text-center p-3 rounded-xl bg-orange-500/10">
-                            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{grandTotalBoxes}</p>
-                            <p className="text-xs text-muted-foreground">Коробок</p>
-                        </div>
-                        <div className="text-center p-3 rounded-xl bg-purple-500/10">
-                            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{grandTotalPairs}</p>
-                            <p className="text-xs text-muted-foreground">Пар</p>
-                        </div>
+                </div>
+
+                {/* Правый фиксированный блок: комментарий + итоги + отправка */}
+                {selectedProducts.length > 0 && (
+                    <div className="lg:sticky lg:top-6">
+                        <Card className="p-5 space-y-5">
+                            {/* Комментарий */}
+                            <div>
+                                <label className="block text-sm font-medium mb-2">Комментарий (необязательно)</label>
+                                <textarea
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    placeholder="Примечание к отправке..."
+                                    rows={3}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
+                                />
+                            </div>
+
+                            {/* Итоги */}
+                            <div>
+                                <h2 className="text-sm font-semibold mb-2 text-muted-foreground">Итого</h2>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="text-center p-3 rounded-xl bg-orange-500/10">
+                                        <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{grandTotalBoxes}</p>
+                                        <p className="text-xs text-muted-foreground">Коробок</p>
+                                    </div>
+                                    <div className="text-center p-3 rounded-xl bg-purple-500/10">
+                                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{grandTotalPairs}</p>
+                                        <p className="text-xs text-muted-foreground">Пар</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Отправить */}
+                            <Button
+                                className="w-full"
+                                size="lg"
+                                isLoading={isSubmitting}
+                                disabled={!canSubmit}
+                                onClick={handleSubmit}
+                            >
+                                <SendHorizontal className="h-5 w-5 mr-2" />
+                                Отправить товары
+                            </Button>
+                        </Card>
                     </div>
-                    <Button
-                        className="w-full"
-                        size="lg"
-                        isLoading={isSubmitting}
-                        disabled={!canSubmit}
-                        onClick={handleSubmit}
-                    >
-                        <SendHorizontal className="h-5 w-5 mr-2" />
-                        Отправить товары
-                    </Button>
-                </Card>
-            )}
+                )}
+            </div>
         </div>
     );
 }
