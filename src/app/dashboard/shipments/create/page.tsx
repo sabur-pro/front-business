@@ -665,24 +665,23 @@ export default function CreateShipmentPage() {
 
                 </div>
 
-                {/* Правый фиксированный блок: комментарий + итоги + отправка */}
+                {/* Правый закреплённый блок: комментарий (тянется) + итоги + отправка, до навигации */}
                 {selectedProducts.length > 0 && (
-                    <div className="lg:sticky lg:top-6">
-                        <Card className="p-5 space-y-5">
-                            {/* Комментарий */}
-                            <div>
+                    <div className="lg:sticky lg:top-4 lg:h-[calc(100vh-6rem)]">
+                        <Card className="p-5 flex flex-col gap-4 h-full">
+                            {/* Комментарий — занимает всё свободное место по высоте */}
+                            <div className="flex-1 flex flex-col min-h-0">
                                 <label className="block text-sm font-medium mb-2">Комментарий (необязательно)</label>
                                 <textarea
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
                                     placeholder="Примечание к отправке..."
-                                    rows={3}
-                                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
+                                    className="flex-1 w-full min-h-[140px] px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
                                 />
                             </div>
 
                             {/* Итоги */}
-                            <div>
+                            <div className="flex-shrink-0">
                                 <h2 className="text-sm font-semibold mb-2 text-muted-foreground">Итого</h2>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="text-center p-3 rounded-xl bg-orange-500/10">
@@ -698,7 +697,7 @@ export default function CreateShipmentPage() {
 
                             {/* Отправить */}
                             <Button
-                                className="w-full"
+                                className="w-full flex-shrink-0"
                                 size="lg"
                                 isLoading={isSubmitting}
                                 disabled={!canSubmit}
