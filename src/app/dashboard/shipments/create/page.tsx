@@ -300,7 +300,7 @@ export default function CreateShipmentPage() {
     }
 
     return (
-        <div className="space-y-6 pb-24">
+        <div className="flex flex-col gap-6 pb-24 lg:pb-0 lg:h-[calc(100vh-7rem)]">
             {/* Header */}
             <div className="flex items-center gap-3">
                 <button
@@ -344,9 +344,9 @@ export default function CreateShipmentPage() {
                 )}
             </AnimatePresence>
 
-            {/* Layout: форма слева, фиксированный блок действий справа */}
-            <div className={`grid gap-6 items-start ${selectedProducts.length > 0 ? 'lg:grid-cols-[1fr_360px]' : 'grid-cols-1'}`}>
-                <div className="space-y-6 min-w-0">
+            {/* Layout: форма слева (прокручивается), фиксированный блок справа */}
+            <div className="flex flex-col lg:flex-row gap-6 lg:flex-1 lg:min-h-0">
+                <div className="space-y-6 min-w-0 flex-1 lg:h-full lg:overflow-y-auto lg:pr-2">
             {/* FROM: Sender Point */}
             <Card className="p-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -667,7 +667,7 @@ export default function CreateShipmentPage() {
 
                 {/* Правый закреплённый блок: комментарий (тянется) + итоги + отправка, до навигации */}
                 {selectedProducts.length > 0 && (
-                    <div className="lg:sticky lg:top-4 lg:h-[calc(100vh-6rem)]">
+                    <div className="w-full lg:w-[360px] lg:flex-shrink-0 lg:h-full">
                         <Card className="p-5 flex flex-col gap-4 h-full">
                             {/* Комментарий — занимает всё свободное место по высоте */}
                             <div className="flex-1 flex flex-col min-h-0">
