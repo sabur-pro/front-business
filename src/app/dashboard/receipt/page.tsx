@@ -18,6 +18,7 @@ import {
     AlertCircle,
     AlertTriangle,
     RotateCcw,
+    Pencil,
     Camera,
     History,
 } from 'lucide-react';
@@ -53,9 +54,26 @@ interface ProductRow {
     actualSalePrice: number;
     totalActualSale: number;
     barcode: string;
-    // Решение для существующего товара: create — новый, restock — повторный приход, skip — пропустить
-    receiptMode: 'create' | 'restock' | 'skip';
+    // Решение для существующего товара: create — новый, restock — повторный приход
+    receiptMode: 'create' | 'restock';
+    // Пользователь вручную менял размерный ряд (тогда не перезаписываем авто-значением по префиксу)
+    sizeRangeTouched: boolean;
+    // Режим «свой вариант» в селекторах
+    sizeRangeCustom: boolean;
+    boxCountCustom: boolean;
 }
+
+// Пресеты для селекторов
+const SIZE_RANGE_PRESETS = ['41-45', '36-41', '37-41', '40-45', '36-40'];
+const BOX_COUNT_PRESETS = [10, 20, 5, 15, 25, 30, 40, 50];
+
+// Авто-размерный ряд по первой букве артикула
+const defaultSizeRangeBySku = (sku: string): string => {
+    const upper = sku.trim().charAt(0).toUpperCase();
+    if (upper === 'A' || upper === 'А') return '41-45';
+    if (upper === 'B' || upper === 'В') return '36-41';
+    return '';
+};
 
 const emptyRow = (): ProductRow => ({
     id: crypto.randomUUID(),
@@ -65,8 +83,8 @@ const emptyRow = (): ProductRow => ({
     photoFile: null,
     photoPreview: '',
     sizeRange: '',
-    boxCount: 0,
-    pairCount: 0,
+    boxCount: 10,
+    pairCount: 80,
     priceYuan: 0,
     priceRub: 0,
     totalYuan: 0,
@@ -77,6 +95,9 @@ const emptyRow = (): ProductRow => ({
     totalActualSale: 0,
     barcode: '',
     receiptMode: 'create',
+    sizeRangeTouched: false,
+    sizeRangeCustom: false,
+    boxCountCustom: false,
 });
 
 export default function ReceiptPage() {
@@ -144,6 +165,16 @@ export default function ReceiptPage() {
             if (field === 'sku') {
                 updated.receiptMode = 'create';
                 setReviewNotice(null);
+                // Авто-подстановка размерного ряда по префиксу, если пользователь его не менял вручную
+                if (!row.sizeRangeTouched) {
+                    updated.sizeRange = defaultSizeRangeBySku(String(value));
+                    updated.sizeRangeCustom = false;
+                }
+            }
+
+            // Ручное изменение размерного ряда фиксируем, чтобы не перетереть авто-значением
+            if (field === 'sizeRange' || field === 'sizeRangeCustom') {
+                updated.sizeRangeTouched = true;
             }
 
             // Auto-calculate pairs if boxCount changes (1 box = 8 pairs)
@@ -183,6 +214,32 @@ export default function ReceiptPage() {
 
     const addRow = () => {
         setRows(prev => [...prev, emptyRow()]);
+    };
+
+    // «Изменить артикул»: дописываем в конец суффикс -N, чтобы получился новый уникальный артикул
+    const changeSkuToVariant = (id: string) => {
+        setRows(prev => {
+            const row = prev.find(r => r.id === id);
+            if (!row) return prev;
+
+            // Уже занятые артикулы: существующие на складе + все строки формы
+            const taken = new Set<string>(Object.keys(existingMap));
+            prev.forEach(r => { if (r.sku.trim()) taken.add(r.sku.trim()); });
+
+            const base = row.sku.trim();
+            // Если артикул уже оканчивается на «-<число>» — увеличиваем это число, иначе добавляем «-2»
+            const m = base.match(/^(.*-)(\d+)$/);
+            const stem = m ? m[1] : `${base}-`;
+            let n = m ? parseInt(m[2], 10) + 1 : 2;
+            let candidate = `${stem}${n}`;
+            while (taken.has(candidate)) {
+                n += 1;
+                candidate = `${stem}${n}`;
+            }
+
+            return prev.map(r => r.id === id ? { ...r, sku: candidate, receiptMode: 'create' as const } : r);
+        });
+        setReviewNotice(null);
     };
 
     // ---- File Upload Parser ----
@@ -286,6 +343,10 @@ export default function ReceiptPage() {
                         totalActualSale: 0,
                         barcode: '',
                         receiptMode: 'create',
+                        // Если файл задал размерный ряд — считаем его заданным вручную (не перезаписываем)
+                        sizeRangeTouched: colSizeRange !== -1 && !!String(r[colSizeRange] || '').trim(),
+                        sizeRangeCustom: false,
+                        boxCountCustom: false,
                     });
                 }
 
@@ -345,12 +406,12 @@ export default function ReceiptPage() {
 
             // Строки, для которых найден существующий товар и решение ещё не принято
             const existingRows = validRows.filter(r => map[r.sku.trim()]);
-            const unresolved = existingRows.filter(r => r.receiptMode !== 'restock' && r.receiptMode !== 'skip');
+            const unresolved = existingRows.filter(r => r.receiptMode !== 'restock');
 
             // 2. Если есть новые пересечения — не сохраняем, показываем обзор
             if (existingRows.length > 0 && unresolved.length > 0) {
                 setRows(prev => prev.map(r => {
-                    if (map[r.sku.trim()] && r.receiptMode !== 'restock' && r.receiptMode !== 'skip') {
+                    if (map[r.sku.trim()] && r.receiptMode !== 'restock') {
                         return { ...r, receiptMode: 'restock' };
                     }
                     return r;
@@ -358,24 +419,17 @@ export default function ReceiptPage() {
                 setReviewNotice(
                     `Найдено товаров, которые уже есть на складе: ${existingRows.length}. ` +
                     `По умолчанию для них выбран «Повторный приход» (пополнение остатка). ` +
+                    `Если это другой товар — нажмите «Изменить артикул», чтобы сохранить его как новый. ` +
                     `Проверьте отметки у товаров ниже (⚠) и нажмите «Оформить приход» ещё раз.`
                 );
                 setIsSubmitting(false);
                 return;
             }
 
-            // 3. Пропускаем строки, помеченные «Пропустить»
-            const rowsToSubmit = validRows.filter(r => !(map[r.sku.trim()] && r.receiptMode === 'skip'));
-            if (rowsToSubmit.length === 0) {
-                setError('Все товары помечены как «Пропустить» — нечего оформлять');
-                setIsSubmitting(false);
-                return;
-            }
-
-            // 4. Загружаем фото и собираем позиции
+            // 3. Загружаем фото и собираем позиции
             const items: BatchProductItem[] = [];
 
-            for (const row of rowsToSubmit) {
+            for (const row of validRows) {
                 let photoOriginalUrl: string | undefined;
                 let photoUrl: string | undefined;
 
@@ -442,7 +496,6 @@ export default function ReceiptPage() {
     // Existing products (для нумерации значков ⚠ и подсчёта)
     const existingRowSkus = rows.filter(r => r.sku.trim() && existingMap[r.sku.trim()]).map(r => r.sku.trim());
     const restockCount = rows.filter(r => r.sku.trim() && existingMap[r.sku.trim()] && r.receiptMode === 'restock').length;
-    const skipCount = rows.filter(r => r.sku.trim() && existingMap[r.sku.trim()] && r.receiptMode === 'skip').length;
 
     if (isLoading) {
         return (
@@ -681,7 +734,7 @@ export default function ReceiptPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.02 }}
                         >
-                            <Card className={`p-3 space-y-2.5 ${ex ? (row.receiptMode === 'skip' ? 'border-muted-foreground/40 opacity-70' : 'border-amber-400/50 ring-1 ring-amber-400/30') : ''}`}>
+                            <Card className={`p-3 space-y-2.5 ${ex ? 'border-amber-400/50 ring-1 ring-amber-400/30' : ''}`}>
                                 {/* Header: # + delete */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -715,7 +768,42 @@ export default function ReceiptPage() {
                                     </div>
                                     <div>
                                         <label className="text-[10px] text-muted-foreground block mb-0.5">Разм. ряд</label>
-                                        <input value={row.sizeRange} onChange={(e) => updateRow(row.id, 'sizeRange', e.target.value)} placeholder="36-41" className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary" />
+                                        {(row.sizeRangeCustom || (row.sizeRange !== '' && !SIZE_RANGE_PRESETS.includes(row.sizeRange))) ? (
+                                            <div className="flex gap-1">
+                                                <input
+                                                    value={row.sizeRange}
+                                                    onChange={(e) => updateRow(row.id, 'sizeRange', e.target.value)}
+                                                    placeholder="напр. 38-42"
+                                                    autoFocus
+                                                    className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    title="Выбрать из списка"
+                                                    onClick={() => { updateRow(row.id, 'sizeRange', ''); updateRow(row.id, 'sizeRangeCustom', false); }}
+                                                    className="px-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted/50 flex items-center"
+                                                >
+                                                    <ChevronDown className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <select
+                                                value={SIZE_RANGE_PRESETS.includes(row.sizeRange) ? row.sizeRange : ''}
+                                                onChange={(e) => {
+                                                    if (e.target.value === '__custom__') {
+                                                        updateRow(row.id, 'sizeRange', '');
+                                                        updateRow(row.id, 'sizeRangeCustom', true);
+                                                    } else {
+                                                        updateRow(row.id, 'sizeRange', e.target.value);
+                                                    }
+                                                }}
+                                                className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary"
+                                            >
+                                                <option value="">—</option>
+                                                {SIZE_RANGE_PRESETS.map(s => <option key={s} value={s}>{s}</option>)}
+                                                <option value="__custom__">Свой вариант…</option>
+                                            </select>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="text-[10px] text-muted-foreground block mb-0.5">Баркод</label>
@@ -766,7 +854,41 @@ export default function ReceiptPage() {
                                     <div className="flex-1 grid grid-cols-4 gap-1.5">
                                         <div>
                                             <label className="text-[9px] text-muted-foreground block mb-0.5 text-center">Коробок</label>
-                                            <input type="text" inputMode="numeric" value={row.boxCount || ''} onChange={(e) => updateRow(row.id, 'boxCount', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)} placeholder="0" className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                                            {(row.boxCountCustom || (row.boxCount > 0 && !BOX_COUNT_PRESETS.includes(row.boxCount))) ? (
+                                                <div className="flex gap-0.5">
+                                                    <input
+                                                        type="text" inputMode="numeric" autoFocus
+                                                        value={row.boxCount || ''}
+                                                        onChange={(e) => updateRow(row.id, 'boxCount', parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
+                                                        placeholder="0"
+                                                        className="w-full px-1.5 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        title="Выбрать из списка"
+                                                        onClick={() => { updateRow(row.id, 'boxCountCustom', false); updateRow(row.id, 'boxCount', 10); }}
+                                                        className="px-1 rounded-md border border-border text-muted-foreground hover:bg-muted/50 flex items-center"
+                                                    >
+                                                        <ChevronDown className="h-3 w-3" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <select
+                                                    value={BOX_COUNT_PRESETS.includes(row.boxCount) ? String(row.boxCount) : ''}
+                                                    onChange={(e) => {
+                                                        if (e.target.value === '__custom__') {
+                                                            updateRow(row.id, 'boxCountCustom', true);
+                                                        } else {
+                                                            updateRow(row.id, 'boxCountCustom', false);
+                                                            updateRow(row.id, 'boxCount', Number(e.target.value));
+                                                        }
+                                                    }}
+                                                    className="w-full px-1.5 py-1.5 rounded-md border border-border bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                                >
+                                                    {BOX_COUNT_PRESETS.map(b => <option key={b} value={b}>{b}</option>)}
+                                                    <option value="__custom__">Свой…</option>
+                                                </select>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="text-[9px] text-muted-foreground block mb-0.5 text-center">Пар</label>
@@ -823,11 +945,11 @@ export default function ReceiptPage() {
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => updateRow(row.id, 'receiptMode', 'skip')}
-                                                className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-medium border transition-colors ${row.receiptMode === 'skip' ? 'bg-muted-foreground/20 border-muted-foreground text-foreground' : 'border-border bg-background text-muted-foreground hover:bg-muted/50'}`}
+                                                onClick={() => changeSkuToVariant(row.id)}
+                                                className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-medium border border-border bg-background text-muted-foreground hover:bg-muted/50 transition-colors"
                                             >
-                                                <X className="h-3.5 w-3.5" />
-                                                Пропустить
+                                                <Pencil className="h-3.5 w-3.5" />
+                                                Изменить артикул
                                             </button>
                                         </div>
                                         {row.receiptMode === 'restock' && (
@@ -835,9 +957,6 @@ export default function ReceiptPage() {
                                                 После пополнения станет: <b>{ex.pairCount + (row.pairCount || 0)}</b> пар
                                                 ({ex.boxCount + (row.boxCount || 0)} кор.) — прибавим +{row.pairCount || 0} пар.
                                             </p>
-                                        )}
-                                        {row.receiptMode === 'skip' && (
-                                            <p className="text-[10px] text-muted-foreground">Этот товар не будет сохранён.</p>
                                         )}
                                     </div>
                                 )}
@@ -883,8 +1002,6 @@ export default function ReceiptPage() {
                             </span>
                             <span className="text-muted-foreground">•</span>
                             <span className="text-emerald-600 dark:text-emerald-400">Повторный приход: {restockCount}</span>
-                            <span className="text-muted-foreground">•</span>
-                            <span className="text-muted-foreground">Пропустить: {skipCount}</span>
                         </div>
                     )}
 
