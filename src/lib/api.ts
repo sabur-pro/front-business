@@ -153,6 +153,18 @@ export const authApi = {
         const response = await api.get<UserResponse>('/auth/me');
         return response.data;
     },
+
+    // Список организаторов (только для девелопера)
+    listOrganizers: async () => {
+        const response = await api.get<OrganizerListItem[]>('/auth/organizers');
+        return response.data;
+    },
+
+    // Войти под организатора (только для девелопера)
+    actAs: async (organizerId: string) => {
+        const response = await api.post<AuthResponse>(`/auth/act-as/${organizerId}`);
+        return response.data;
+    },
 };
 
 // Warehouse API
@@ -259,10 +271,21 @@ export interface UserResponse {
     lastName: string;
     fullName: string;
     phone?: string;
-    role: 'ORGANIZER' | 'POINT_ADMIN';
+    role: 'DEVELOPER' | 'ORGANIZER' | 'POINT_ADMIN';
     accountId?: string;
     canAddProducts?: boolean;
     canManageCounterparties?: boolean;
+    // true, если это сессия девелопера, вошедшего «под организатора»
+    isDeveloper?: boolean;
+}
+
+export interface OrganizerListItem {
+    id: string;
+    email: string;
+    fullName: string;
+    phone?: string;
+    accountId?: string;
+    isActive: boolean;
 }
 
 export interface WarehouseResponse {
@@ -1350,6 +1373,12 @@ export const shipmentApi = {
 
     cancel: async (id: string) => {
         const response = await api.put<ShipmentResponse>(`/shipments/${id}/cancel`);
+        return response.data;
+    },
+
+    // Удалить заявку (только девелопер — с откатом товара)
+    delete: async (id: string) => {
+        const response = await api.delete<{ success: true }>(`/shipments/${id}`);
         return response.data;
     },
 

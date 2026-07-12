@@ -16,6 +16,7 @@ import {
     ChevronRight,
     Filter,
     Calendar,
+    Trash2,
 } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -48,6 +49,7 @@ export default function ShipmentsPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
     const [dateFilter, setDateFilter] = useState('');
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) {
@@ -78,6 +80,25 @@ export default function ShipmentsPage() {
             setIsLoading(false);
         }
     }, [statusFilter, page]);
+
+    const handleDelete = useCallback(async (e: React.MouseEvent, shipment: ShipmentResponse) => {
+        e.stopPropagation();
+        if (deletingId) return;
+        const ok = window.confirm(
+            `Удалить заявку #${shipment.number}? Движение товара будет откачено, запись удалена безвозвратно.`,
+        );
+        if (!ok) return;
+        setDeletingId(shipment.id);
+        try {
+            await shipmentApi.delete(shipment.id);
+            setShipments(prev => prev.filter(s => s.id !== shipment.id));
+            setTotal(t => Math.max(0, t - 1));
+        } catch (err: any) {
+            alert(err?.response?.data?.message || 'Не удалось удалить заявку');
+        } finally {
+            setDeletingId(null);
+        }
+    }, [deletingId]);
 
     useEffect(() => {
         setPage(1);
@@ -250,6 +271,17 @@ export default function ShipmentsPage() {
                                                             <StatusIcon className="h-3 w-3" />
                                                             {statusCfg.label}
                                                         </span>
+                                                        {user?.isDeveloper && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => handleDelete(e, shipment)}
+                                                                disabled={deletingId === shipment.id}
+                                                                title="Удалить заявку (девелопер)"
+                                                                className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        )}
                                                         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                                                     </div>
                                                 </div>

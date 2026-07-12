@@ -21,6 +21,7 @@ import {
     Truck,
     Search,
     History,
+    Trash2,
 } from 'lucide-react';
 import { Button, Card, ImageViewer, AuditHistoryModal } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -61,6 +62,7 @@ export default function ShipmentDetailPage() {
     const [receiverPhotoPreview, setReceiverPhotoPreview] = useState('');
     const [isAccepting, setIsAccepting] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [viewerImage, setViewerImage] = useState<string | null>(null);
     const [viewerAlt, setViewerAlt] = useState('');
     const [showHistory, setShowHistory] = useState(false);
@@ -162,6 +164,23 @@ export default function ShipmentDetailPage() {
         }
     };
 
+    const handleDelete = async () => {
+        if (!shipment) return;
+        const ok = window.confirm(
+            `Удалить заявку #${shipment.number}? Движение товара будет откачено, запись удалена безвозвратно.`,
+        );
+        if (!ok) return;
+        setError(null);
+        setIsDeleting(true);
+        try {
+            await shipmentApi.delete(shipment.id);
+            router.push('/dashboard/shipments');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Не удалось удалить заявку');
+            setIsDeleting(false);
+        }
+    };
+
     const formatDate = (dateStr: string | null) => {
         if (!dateStr) return '—';
         return new Date(dateStr).toLocaleDateString('ru-RU', {
@@ -233,10 +252,24 @@ export default function ShipmentDetailPage() {
                         Создано: {formatDate(shipment.createdAt)}
                     </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowHistory(true)}>
-                    <History className="h-4 w-4 mr-1.5" />
-                    История
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowHistory(true)}>
+                        <History className="h-4 w-4 mr-1.5" />
+                        История
+                    </Button>
+                    {user?.isDeveloper && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDelete}
+                            isLoading={isDeleting}
+                            className="text-red-500 border-red-500/40 hover:bg-red-500/10"
+                        >
+                            <Trash2 className="h-4 w-4 mr-1.5" />
+                            Удалить
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Banners */}

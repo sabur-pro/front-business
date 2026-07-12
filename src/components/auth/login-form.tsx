@@ -41,7 +41,12 @@ export function LoginForm() {
         try {
             const response = await authApi.login(data);
             login(response.user, response.accessToken, response.refreshToken);
-            router.push('/dashboard');
+            // Девелопер сначала выбирает организатора, под которым будет работать
+            if (response.user.role === 'DEVELOPER') {
+                router.push('/developer');
+            } else {
+                router.push('/dashboard');
+            }
         } catch (err: any) {
             setError(err.response?.data?.message || t('errors.invalidCredentials'));
         } finally {
