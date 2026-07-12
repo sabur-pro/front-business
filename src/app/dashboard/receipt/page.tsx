@@ -216,7 +216,8 @@ export default function ReceiptPage() {
         setRows(prev => [...prev, emptyRow()]);
     };
 
-    // «Изменить артикул»: дописываем в конец суффикс -N, чтобы получился новый уникальный артикул
+    // «Изменить артикул»: дописываем в конец английскую букву (a, b, … z, затем aa, bb, …),
+    // чтобы получился новый уникальный артикул
     const changeSkuToVariant = (id: string) => {
         setRows(prev => {
             const row = prev.find(r => r.id === id);
@@ -227,14 +228,33 @@ export default function ReceiptPage() {
             prev.forEach(r => { if (r.sku.trim()) taken.add(r.sku.trim()); });
 
             const base = row.sku.trim();
-            // Если артикул уже оканчивается на «-<число>» — увеличиваем это число, иначе добавляем «-2»
-            const m = base.match(/^(.*-)(\d+)$/);
-            const stem = m ? m[1] : `${base}-`;
-            let n = m ? parseInt(m[2], 10) + 1 : 2;
-            let candidate = `${stem}${n}`;
+
+            // Следующая буква/повтор: z → aa, zz → aaa и т.д.
+            const nextLC = (letter: string, count: number): [string, number] => {
+                if (letter === 'z') return ['a', count + 1];
+                return [String.fromCharCode(letter.charCodeAt(0) + 1), count];
+            };
+
+            // Разбираем текущий буквенный суффикс в конце артикула
+            const m = base.match(/^(.*?)([a-z]+)$/);
+            let stem: string;
+            let letter: string;
+            let count: number;
+            if (m && /^(.)\1*$/.test(m[2])) {
+                // Артикул уже оканчивается на повтор одной буквы (a, aa, …) — берём следующую
+                stem = m[1];
+                [letter, count] = nextLC(m[2][0], m[2].length);
+            } else {
+                // Буквенного суффикса нет — начинаем с «a»
+                stem = base;
+                letter = 'a';
+                count = 1;
+            }
+
+            let candidate = `${stem}${letter.repeat(count)}`;
             while (taken.has(candidate)) {
-                n += 1;
-                candidate = `${stem}${n}`;
+                [letter, count] = nextLC(letter, count);
+                candidate = `${stem}${letter.repeat(count)}`;
             }
 
             return prev.map(r => r.id === id ? { ...r, sku: candidate, receiptMode: 'create' as const } : r);
