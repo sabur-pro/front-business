@@ -369,6 +369,7 @@ export interface OrgSettingsResponse {
     canAddPoints: boolean;
     canAddWarehouses: boolean;
     canAddProducts: boolean;
+    hardDeleteProducts: boolean;
 }
 
 export interface UpdateOrgSettingsData {
@@ -376,6 +377,7 @@ export interface UpdateOrgSettingsData {
     canAddPoints?: boolean;
     canAddWarehouses?: boolean;
     canAddProducts?: boolean;
+    hardDeleteProducts?: boolean;
 }
 
 

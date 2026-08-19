@@ -16,6 +16,7 @@ import {
     Warehouse,
     History,
     ChevronRight,
+    Trash2,
 } from 'lucide-react';
 import { Card, Button, ThemeToggle, LanguageToggle } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -62,7 +63,7 @@ export default function SettingsPage() {
         }
     };
 
-    const handleToggle = async (key: 'canAddEmployees' | 'canAddPoints' | 'canAddWarehouses', value: boolean) => {
+    const handleToggle = async (key: 'canAddEmployees' | 'canAddPoints' | 'canAddWarehouses' | 'hardDeleteProducts', value: boolean) => {
         setIsUpdating(key);
         try {
             await updateSettings({ [key]: value });
@@ -184,6 +185,23 @@ export default function SettingsPage() {
                                     checked={settings.canAddWarehouses}
                                     onChange={(v) => handleToggle('canAddWarehouses', v)}
                                     disabled={isUpdating === 'canAddWarehouses'}
+                                />
+                            </div>
+                            <div className="border-t" />
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-red-500/10">
+                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                    </div>
+                                    <div>
+                                        <span className="text-sm font-medium">Жёсткое удаление товаров</span>
+                                        <p className="text-xs text-muted-foreground">Удалять товары из базы полностью, без перемещения в архив</p>
+                                    </div>
+                                </div>
+                                <Toggle
+                                    checked={settings.hardDeleteProducts}
+                                    onChange={(v) => handleToggle('hardDeleteProducts', v)}
+                                    disabled={isUpdating === 'hardDeleteProducts'}
                                 />
                             </div>
                         </div>
