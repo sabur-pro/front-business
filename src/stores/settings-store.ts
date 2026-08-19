@@ -41,11 +41,18 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     },
 
     updateSettings: async (data) => {
+        const previousSettings = get().settings;
+        if (previousSettings) {
+            set({ settings: { ...previousSettings, ...data } });
+        }
         try {
             const updated = await settingsApi.update(data);
             set({ settings: updated });
         } catch (err) {
             console.error('Failed to update settings', err);
+            if (previousSettings) {
+                set({ settings: previousSettings });
+            }
             throw err;
         }
     },
