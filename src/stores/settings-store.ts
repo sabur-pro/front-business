@@ -21,6 +21,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
             set({ settings: data });
         } catch (err) {
             console.error('Failed to fetch settings', err);
+            // Fallback defaults so UI settings section remains accessible
+            if (!get().settings) {
+                set({
+                    settings: {
+                        id: '',
+                        accountId: '',
+                        canAddEmployees: true,
+                        canAddPoints: true,
+                        canAddWarehouses: true,
+                        canAddProducts: false,
+                        hardDeleteProducts: false,
+                    },
+                });
+            }
         } finally {
             set({ isLoading: false });
         }
