@@ -472,7 +472,11 @@ export default function CashRegisterPage() {
                                     {group.items.map((tx, idx) => {
                                         const config = cashTxConfig[tx.type] || { label: tx.type, color: 'text-gray-500 bg-gray-500/10', icon: ArrowRightLeft };
                                         const Icon = config.icon;
-                                        const isNeg = negativeTxTypes.includes(tx.type);
+                                        // Знак задаёт и тип операции, и знак суммы: отмена продажи
+                                        // приходит как SALE_INCOME с отрицательной суммой — это возврат денег
+                                        const amount = Number(tx.amount);
+                                        const typeSign = negativeTxTypes.includes(tx.type) ? -1 : 1;
+                                        const isNeg = typeSign * (amount < 0 ? -1 : 1) < 0;
                                         return (
                                             <motion.div key={tx.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.02 }}>
                                                 <Card className="p-3">
@@ -484,7 +488,7 @@ export default function CashRegisterPage() {
                                                             {tx.description && <p className="text-xs text-muted-foreground truncate mt-0.5">{tx.description}</p>}
                                                         </div>
                                                         <span className={`text-sm font-semibold flex-shrink-0 ${isNeg ? 'text-red-500' : 'text-green-500'}`}>
-                                                            {isNeg ? '-' : '+'}{Math.abs(Number(tx.amount)).toLocaleString('ru-RU')} ₽
+                                                            {isNeg ? '-' : '+'}{Math.abs(amount).toLocaleString('ru-RU')} ₽
                                                         </span>
                                                     </div>
                                                 </Card>

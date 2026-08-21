@@ -151,6 +151,8 @@ export default function ShopPage() {
     const router = useRouter();
     const { user } = useAuthStore();
     const isOrganizer = user?.role === 'ORGANIZER';
+    const canEditProducts = isOrganizer || !!user?.canEditProducts;
+    const canDeleteProducts = isOrganizer || !!user?.canDeleteProducts;
 
     const [shops, setShops] = useState<WarehouseResponse[]>([]);
     const [points, setPoints] = useState<PointResponse[]>([]);
@@ -788,6 +790,8 @@ export default function ShopPage() {
                     onDelete={setDeleteRow}
                     onHistory={setHistoryProductId}
                     onPhoto={setViewerImage}
+                    canEdit={canEditProducts}
+                    canDelete={canDeleteProducts}
                     showArrivedAt={mode === 'all'}
                 />
             )}
@@ -841,6 +845,8 @@ export default function ShopPage() {
                                         onDelete={setDeleteRow}
                                         onHistory={setHistoryProductId}
                                         onPhoto={setViewerImage}
+                                        canEdit={canEditProducts}
+                                        canDelete={canDeleteProducts}
                                         showArrivedAt
                                     />
                                 </div>
@@ -1035,6 +1041,8 @@ interface ProductTableProps {
     onDelete: (row: Row) => void;
     onHistory: (productId: string) => void;
     onPhoto: (url: string) => void;
+    canEdit: boolean;
+    canDelete: boolean;
     showArrivedAt?: boolean;
 }
 
@@ -1052,6 +1060,8 @@ function ProductTable({
     onDelete,
     onHistory,
     onPhoto,
+    canEdit,
+    canDelete,
     showArrivedAt,
 }: ProductTableProps) {
     const SortHeader = ({ field, label, className }: { field: SortField; label: string; className?: string }) => (
@@ -1212,20 +1222,24 @@ function ProductTable({
                                             >
                                                 <History className="h-3.5 w-3.5" />
                                             </button>
-                                            <button
-                                                onClick={() => onEdit(row)}
-                                                className="p-1.5 rounded hover:bg-accent transition-colors"
-                                                title="Редактировать"
-                                            >
-                                                <Pencil className="h-3.5 w-3.5" />
-                                            </button>
-                                            <button
-                                                onClick={() => onDelete(row)}
-                                                className="p-1.5 rounded hover:bg-destructive/10 text-destructive transition-colors"
-                                                title="Удалить"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </button>
+                                            {canEdit && (
+                                                <button
+                                                    onClick={() => onEdit(row)}
+                                                    className="p-1.5 rounded hover:bg-accent transition-colors"
+                                                    title="Редактировать"
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
+                                            {canDelete && (
+                                                <button
+                                                    onClick={() => onDelete(row)}
+                                                    className="p-1.5 rounded hover:bg-destructive/10 text-destructive transition-colors"
+                                                    title="Удалить"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

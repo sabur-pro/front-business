@@ -847,6 +847,82 @@ export default function EmployeesPage() {
                                         </button>
                                     </div>
 
+                                    {/* canEditProducts toggle (per-user) */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-amber-500/10">
+                                                <Pencil className="h-4 w-4 text-amber-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">Редактирование товаров</p>
+                                                <p className="text-xs text-muted-foreground">Разрешить изменять карточку товара</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                setIsTogglingPermission(true);
+                                                try {
+                                                    const updated = await employeeApi.updatePermissions(detailEmployee.id, {
+                                                        canEditProducts: !detailEmployee.canEditProducts,
+                                                    });
+                                                    setDetailEmployee(updated);
+                                                    setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
+                                                } catch (err: any) {
+                                                    setError(err.response?.data?.message || 'Ошибка обновления разрешения');
+                                                } finally {
+                                                    setIsTogglingPermission(false);
+                                                }
+                                            }}
+                                            disabled={isTogglingPermission}
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${detailEmployee.canEditProducts
+                                                    ? 'bg-green-500'
+                                                    : 'bg-gray-300 dark:bg-gray-600'
+                                                } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                        >
+                                            <span
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${detailEmployee.canEditProducts ? 'translate-x-5' : 'translate-x-0'}`}
+                                            />
+                                        </button>
+                                    </div>
+
+                                    {/* canDeleteProducts toggle (per-user) */}
+                                    <div className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-lg bg-red-500/10">
+                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">Удаление товаров</p>
+                                                <p className="text-xs text-muted-foreground">Разрешить удалять и восстанавливать товары</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                setIsTogglingPermission(true);
+                                                try {
+                                                    const updated = await employeeApi.updatePermissions(detailEmployee.id, {
+                                                        canDeleteProducts: !detailEmployee.canDeleteProducts,
+                                                    });
+                                                    setDetailEmployee(updated);
+                                                    setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
+                                                } catch (err: any) {
+                                                    setError(err.response?.data?.message || 'Ошибка обновления разрешения');
+                                                } finally {
+                                                    setIsTogglingPermission(false);
+                                                }
+                                            }}
+                                            disabled={isTogglingPermission}
+                                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${detailEmployee.canDeleteProducts
+                                                    ? 'bg-green-500'
+                                                    : 'bg-gray-300 dark:bg-gray-600'
+                                                } ${isTogglingPermission ? 'opacity-50' : ''}`}
+                                        >
+                                            <span
+                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${detailEmployee.canDeleteProducts ? 'translate-x-5' : 'translate-x-0'}`}
+                                            />
+                                        </button>
+                                    </div>
+
                                     {/* canManageCounterparties toggle (per-user) */}
                                     <div className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/30">
                                         <div className="flex items-center gap-3">

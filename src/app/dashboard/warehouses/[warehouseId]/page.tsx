@@ -54,6 +54,9 @@ export default function WarehouseDetailPage() {
     }, []);
 
     const canReceipt = user?.role === 'ORGANIZER' || settings?.canAddProducts;
+    const isOrganizer = user?.role === 'ORGANIZER';
+    const canEditProducts = isOrganizer || !!user?.canEditProducts;
+    const canDeleteProducts = isOrganizer || !!user?.canDeleteProducts;
 
     const [warehouse, setWarehouse] = useState<WarehouseResponse | null>(null);
     const [point, setPoint] = useState<PointResponse | null>(null);
@@ -493,6 +496,7 @@ export default function WarehouseDetailPage() {
                             <Filter className="h-3.5 w-3.5" />
                             0 коробок
                         </button>
+                        {canDeleteProducts && (
                         <button
                             onClick={() => isSelectMode ? exitSelectMode() : setIsSelectMode(true)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${isSelectMode
@@ -503,6 +507,7 @@ export default function WarehouseDetailPage() {
                             <CheckSquare className="h-3.5 w-3.5" />
                             {isSelectMode ? 'Отмена' : 'Выбрать'}
                         </button>
+                        )}
                         <div className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
                             <Package className="h-4 w-4" />
                             <span>Всего: <strong className="text-foreground">{total}</strong>{filterZeroBoxes ? ' (0 коробок)' : ''}</span>
@@ -621,12 +626,16 @@ export default function WarehouseDetailPage() {
                                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => setHistoryProductId(product.id)}>
                                                         <History className="h-3 w-3" />
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditModal(product)}>
-                                                        <Pencil className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => setDeleteProductId(product.id)}>
-                                                        <Trash2 className="h-3 w-3" />
-                                                    </Button>
+                                                    {canEditProducts && (
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditModal(product)}>
+                                                            <Pencil className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
+                                                    {canDeleteProducts && (
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => setDeleteProductId(product.id)}>
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

@@ -274,6 +274,8 @@ export interface UserResponse {
     role: 'DEVELOPER' | 'ORGANIZER' | 'POINT_ADMIN';
     accountId?: string;
     canAddProducts?: boolean;
+    canEditProducts?: boolean;
+    canDeleteProducts?: boolean;
     canManageCounterparties?: boolean;
     // true, если это сессия девелопера, вошедшего «под организатора»
     isDeveloper?: boolean;
@@ -434,6 +436,8 @@ export interface EmployeeResponse {
     canReceiveShipment: boolean;
     canSell: boolean;
     canAddProducts: boolean;
+    canEditProducts: boolean;
+    canDeleteProducts: boolean;
     canManageCounterparties: boolean;
     isActive: boolean;
     createdAt: string;
@@ -444,6 +448,8 @@ export interface UpdateEmployeePermissionsData {
     canReceiveShipment?: boolean;
     canSell?: boolean;
     canAddProducts?: boolean;
+    canEditProducts?: boolean;
+    canDeleteProducts?: boolean;
     canManageCounterparties?: boolean;
 }
 
