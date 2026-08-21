@@ -494,6 +494,11 @@ export const productApi = {
         return response.data;
     },
 
+    getById: async (id: string) => {
+        const response = await api.get<ProductResponse>(`/products/${id}`);
+        return response.data;
+    },
+
     getByPoint: async (pointId: string) => {
         const response = await api.get<ProductResponse[]>(`/products/point/${pointId}`);
         return response.data;
@@ -509,7 +514,7 @@ export const productApi = {
         return response.data;
     },
 
-    searchByWarehouse: async (warehouseId: string, params: { page?: number; limit?: number; search?: string; zeroBoxes?: boolean }) => {
+    searchByWarehouse: async (warehouseId: string, params: { page?: number; limit?: number; search?: string; zeroBoxes?: boolean; sortBy?: ProductSortField; order?: 'asc' | 'desc' }) => {
         const response = await api.get<PaginatedProductsResponse>(`/products/warehouse/${warehouseId}`, { params });
         return response.data;
     },
@@ -746,6 +751,7 @@ export interface ProductResponse {
     accountId: string;
     warehouseId: string | null;
     isActive: boolean;
+    lastArrivedAt: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -974,7 +980,135 @@ export const shopApi = {
     removeEmployee: async (shopId: string, userId: string) => {
         await api.delete(`/shops/employees/${shopId}/${userId}`);
     },
+
+    getArrivalDays: async (shopId: string, params?: { from?: string; to?: string }) => {
+        const response = await api.get<ArrivalDayResponse[]>(`/shops/${shopId}/arrival-days`, {
+            params: { ...params, tzOffset: tzOffsetMinutes() },
+        });
+        return response.data;
+    },
+
+    getArrivals: async (shopId: string, date: string, includeRemainders = true) => {
+        const response = await api.get<ArrivalsResponse>(`/shops/${shopId}/arrivals`, {
+            params: { date, includeRemainders, tzOffset: tzOffsetMinutes() },
+        });
+        return response.data;
+    },
+
+    createReturn: async (shopId: string, data: CreateReturnData) => {
+        const response = await api.post<ReturnResponse>(`/shops/${shopId}/returns`, {
+            ...data,
+            tzOffset: tzOffsetMinutes(),
+        });
+        return response.data;
+    },
 };
+
+/** Смещение часового пояса пользователя в минутах (МСК = 180) */
+export const tzOffsetMinutes = () => -new Date().getTimezoneOffset();
+
+export type ArrivalDayStatus = 'NEW' | 'PARTIAL' | 'DONE';
+export type ArrivalSource = 'SHIPMENT' | 'RECEIPT' | 'MANUAL';
+
+export interface ArrivalDayResponse {
+    date: string;
+    arrivalsCount: number;
+    boxCount: number;
+    pairCount: number;
+    soldBoxes: number;
+    soldPairs: number;
+    returnedBoxes: number;
+    returnedPairs: number;
+    remainderBoxes: number;
+    remainderPairs: number;
+    totalCostRub: number;
+    totalRecommended: number;
+    status: ArrivalDayStatus;
+}
+
+export interface ArrivalRowResponse {
+    id: string;
+    productId: string | null;
+    sku: string;
+    photo: string | null;
+    sizeRange: string | null;
+    barcode: string | null;
+    arrivedAt: string;
+    boxCount: number;
+    pairCount: number;
+    soldBoxes: number;
+    soldPairs: number;
+    returnedBoxes: number;
+    returnedPairs: number;
+    availableBoxes: number;
+    availablePairs: number;
+    priceYuan: number;
+    priceRub: number;
+    recommendedSalePrice: number;
+    productBoxCount: number;
+    productPairCount: number;
+    sourceType: ArrivalSource;
+}
+
+export interface ArrivalsResponse {
+    date: string;
+    shopId: string;
+    items: ArrivalRowResponse[];
+    remainders: ArrivalRowResponse[];
+    totals: {
+        boxCount: number;
+        pairCount: number;
+        availableBoxes: number;
+        availablePairs: number;
+        totalCostRub: number;
+        totalRecommended: number;
+    };
+}
+
+export interface CreateReturnItemData {
+    arrivalId?: string;
+    productId: string;
+    boxCount: number;
+    pairCount: number;
+}
+
+export interface CreateReturnData {
+    arrivalDate?: string;
+    note?: string;
+    items: CreateReturnItemData[];
+}
+
+export interface ReturnItemResponse {
+    id: string;
+    arrivalId: string | null;
+    productId: string | null;
+    sku: string;
+    photo: string | null;
+    sizeRange: string | null;
+    boxCount: number;
+    pairCount: number;
+    priceYuan: number;
+    priceRub: number;
+    totalYuan: number;
+    totalRub: number;
+}
+
+export interface ReturnResponse {
+    id: string;
+    number: string;
+    shopId: string;
+    pointId: string;
+    accountId: string;
+    arrivalDate: string | null;
+    totalBoxes: number;
+    totalPairs: number;
+    totalYuan: number;
+    totalRub: number;
+    note: string | null;
+    createdById: string | null;
+    createdAt: string;
+    items: ReturnItemResponse[];
+}
 
 // ==================== SALE API ====================
 
@@ -1035,16 +1169,28 @@ export interface PaginatedSalesResponse {
     totalPages: number;
 }
 
+export type ProductSortField =
+    | 'arrivedAt'
+    | 'sku'
+    | 'boxCount'
+    | 'pairCount'
+    | 'priceRub'
+    | 'recommendedSalePrice'
+    | 'totalRub';
+
 export interface CreateSaleItemData {
     productId: string;
     boxCount: number;
     pairCount: number;
     actualSalePrice: number;
+    arrivalId?: string;
 }
 
 export interface CreateSaleData {
     shopId: string;
     note?: string;
+    /** День поступления, за который оформляется групповая продажа, YYYY-MM-DD */
+    arrivalDate?: string;
     clientId?: string;
     paidAmount?: number;
     paymentMethod?: PaymentMethod;
@@ -1055,7 +1201,10 @@ export interface CreateSaleData {
 
 export const saleApi = {
     create: async (data: CreateSaleData) => {
-        const response = await api.post<SaleResponse>('/sales', data);
+        const response = await api.post<SaleResponse>('/sales', {
+            ...data,
+            tzOffset: tzOffsetMinutes(),
+        });
         return response.data;
     },
 
