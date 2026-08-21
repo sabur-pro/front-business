@@ -22,6 +22,8 @@ import {
     X,
     CheckSquare,
     Square,
+    Eye,
+    EyeOff,
 } from 'lucide-react';
 import { Button, Card, ImageViewer, AuditHistoryModal, ProductEditModal } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -56,6 +58,12 @@ interface Row {
     sizeRange: string | null;
     barcode: string | null;
     arrivedAt: string | null;
+    /** Сколько пришло в партии */
+    arrivedBoxes: number;
+    arrivedPairs: number;
+    soldBoxes: number;
+    soldPairs: number;
+    /** Сколько ещё можно продать */
     availableBoxes: number;
     availablePairs: number;
     priceYuan: number;
@@ -107,6 +115,10 @@ const arrivalToRow = (a: ArrivalRowResponse, isRemainder: boolean): Row => ({
     sizeRange: a.sizeRange,
     barcode: a.barcode,
     arrivedAt: a.arrivedAt,
+    arrivedBoxes: a.boxCount,
+    arrivedPairs: a.pairCount,
+    soldBoxes: a.soldBoxes,
+    soldPairs: a.soldPairs,
     availableBoxes: a.availableBoxes,
     availablePairs: a.availablePairs,
     priceYuan: a.priceYuan,
@@ -123,6 +135,10 @@ const productToRow = (p: ProductResponse): Row => ({
     sizeRange: p.sizeRange,
     barcode: p.barcode,
     arrivedAt: p.lastArrivedAt,
+    arrivedBoxes: p.boxCount,
+    arrivedPairs: p.pairCount,
+    soldBoxes: 0,
+    soldPairs: 0,
     availableBoxes: p.boxCount,
     availablePairs: p.pairCount,
     priceYuan: p.priceYuan,
@@ -156,6 +172,7 @@ export default function ShopPage() {
     const [allRows, setAllRows] = useState<Row[]>([]);
     const [inputs, setInputs] = useState<Record<string, RowInput>>({});
     const [showRemainders, setShowRemainders] = useState(false);
+    const [hideSoldOut, setHideSoldOut] = useState(true);
 
     // Поиск и сортировка
     const [searchQuery, setSearchQuery] = useState('');
@@ -271,8 +288,17 @@ export default function ShopPage() {
 
     const dayInfo = useMemo(() => days.find((d) => d.date === selectedDate), [days, selectedDate]);
 
+    /** Полностью проданные позиции прячем, чтобы не оформить продажу дважды */
+    const soldOutCount = useMemo(
+        () => (mode === 'day' ? dayRows : allRows).filter((r) => r.availablePairs === 0 && r.availableBoxes === 0).length,
+        [mode, dayRows, allRows],
+    );
+
     const visibleRows = useMemo(() => {
-        const base = mode === 'day' ? dayRows : allRows;
+        const source = mode === 'day' ? dayRows : allRows;
+        const base = hideSoldOut
+            ? source.filter((row) => row.availablePairs > 0 || row.availableBoxes > 0)
+            : source;
         const filtered = mode === 'day' && searchQuery
             ? base.filter((row) => {
                 const q = searchQuery.toLowerCase();
@@ -307,7 +333,7 @@ export default function ShopPage() {
                     return ((new Date(a.arrivedAt || 0).getTime()) - new Date(b.arrivedAt || 0).getTime()) * dir;
             }
         });
-    }, [mode, dayRows, allRows, searchQuery, sortField, sortDir]);
+    }, [mode, dayRows, allRows, searchQuery, sortField, sortDir, hideSoldOut]);
 
     const selectedRows = useMemo(() => {
         const pool = mode === 'day' ? [...dayRows, ...remainderRows] : allRows;
@@ -379,11 +405,17 @@ export default function ShopPage() {
         }
     };
 
+    /** Проданные позиции в выделение не попадают */
+    const sellableRows = useMemo(
+        () => visibleRows.filter((row) => row.availablePairs > 0 || row.availableBoxes > 0),
+        [visibleRows],
+    );
+
     const toggleAll = () => {
-        const allSelected = visibleRows.every((row) => inputs[row.key]?.selected);
+        const allSelected = sellableRows.length > 0 && sellableRows.every((row) => inputs[row.key]?.selected);
         setInputs((prev) => {
             const next = { ...prev };
-            for (const row of visibleRows) {
+            for (const row of sellableRows) {
                 if (next[row.key]) next[row.key] = { ...next[row.key], selected: !allSelected };
             }
             return next;
@@ -507,7 +539,7 @@ export default function ShopPage() {
         );
     }
 
-    const allSelected = visibleRows.length > 0 && visibleRows.every((row) => inputs[row.key]?.selected);
+    const allSelected = sellableRows.length > 0 && sellableRows.every((row) => inputs[row.key]?.selected);
 
     return (
         <div className="space-y-4 pb-40">
@@ -618,11 +650,11 @@ export default function ShopPage() {
                 {mode === 'day' && dayInfo && (
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground px-1">
                         <span>Пришло: <strong className="text-foreground">{dayInfo.boxCount} кор / {dayInfo.pairCount} пар</strong></span>
-                        <span>Продано: <strong className="text-green-600 dark:text-green-400">{dayInfo.soldPairs} пар</strong></span>
-                        {dayInfo.returnedPairs > 0 && (
-                            <span>Возврат: <strong className="text-orange-500">{dayInfo.returnedPairs} пар</strong></span>
+                        <span>Продано: <strong className="text-green-600 dark:text-green-400">{dayInfo.soldBoxes} кор / {dayInfo.soldPairs} пар</strong></span>
+                        {(dayInfo.returnedPairs > 0 || dayInfo.returnedBoxes > 0) && (
+                            <span>Возврат: <strong className="text-orange-500">{dayInfo.returnedBoxes} кор / {dayInfo.returnedPairs} пар</strong></span>
                         )}
-                        <span>Остаток: <strong className="text-foreground">{dayInfo.remainderPairs} пар</strong></span>
+                        <span>Остаток: <strong className="text-foreground">{dayInfo.remainderBoxes} кор / {dayInfo.remainderPairs} пар</strong></span>
                     </div>
                 )}
 
@@ -671,14 +703,29 @@ export default function ShopPage() {
             </Card>
 
             {/* Поиск */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Поиск по артикулу, размеру, баркоду..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
+            <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Поиск по артикулу, размеру, баркоду..."
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                </div>
+                {soldOutCount > 0 && (
+                    <button
+                        onClick={() => setHideSoldOut((v) => !v)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium whitespace-nowrap transition-all ${hideSoldOut
+                            ? 'bg-muted/50 border-transparent text-muted-foreground hover:bg-muted'
+                            : 'bg-primary/10 border-primary/30 text-primary'
+                            }`}
+                        title={hideSoldOut ? 'Показать проданные позиции' : 'Скрыть проданные позиции'}
+                    >
+                        {hideSoldOut ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        Проданные ({soldOutCount})
+                    </button>
+                )}
             </div>
 
             {/* Продажа оформлена */}
@@ -708,13 +755,23 @@ export default function ShopPage() {
                         <Package className="h-7 w-7 text-purple-500" />
                     </div>
                     <h3 className="font-semibold mb-1">
-                        {mode === 'day' ? 'В этот день поступлений не было' : 'Нет товаров'}
+                        {soldOutCount > 0
+                            ? 'Всё продано'
+                            : mode === 'day' ? 'В этот день поступлений не было' : 'Нет товаров'}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                        {mode === 'day'
-                            ? 'Выберите другой день или откройте «Все товары»'
-                            : 'В магазине пока нет товаров для продажи'}
+                        {soldOutCount > 0
+                            ? `Все позиции (${soldOutCount}) уже проданы`
+                            : mode === 'day'
+                                ? 'Выберите другой день или откройте «Все товары»'
+                                : 'В магазине пока нет товаров для продажи'}
                     </p>
+                    {soldOutCount > 0 && hideSoldOut && (
+                        <Button size="sm" variant="outline" className="mt-4" onClick={() => setHideSoldOut(false)}>
+                            <Eye className="h-3.5 w-3.5 mr-1.5" />
+                            Показать проданные
+                        </Button>
+                    )}
                 </Card>
             ) : (
                 <ProductTable
@@ -1035,19 +1092,26 @@ function ProductTable({
                             const input = inputs[row.key];
                             if (!input) return null;
                             const rowTotal = input.price * input.pairCount;
+                            const soldOut = row.availablePairs === 0 && row.availableBoxes === 0;
 
                             return (
                                 <tr
                                     key={row.key}
-                                    className={`border-b border-border/30 last:border-0 transition-colors ${input.selected ? 'bg-primary/5' : 'hover:bg-accent/30'
+                                    className={`border-b border-border/30 last:border-0 transition-colors ${soldOut
+                                        ? 'opacity-60'
+                                        : input.selected ? 'bg-primary/5' : 'hover:bg-accent/30'
                                         }`}
                                 >
                                     <td className="px-2 py-1.5">
-                                        <button onClick={() => onUpdate(row, { selected: !input.selected })}>
-                                            {input.selected
-                                                ? <CheckSquare className="h-4 w-4 text-primary" />
-                                                : <Square className="h-4 w-4 text-muted-foreground" />}
-                                        </button>
+                                        {soldOut ? (
+                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                        ) : (
+                                            <button onClick={() => onUpdate(row, { selected: !input.selected })}>
+                                                {input.selected
+                                                    ? <CheckSquare className="h-4 w-4 text-primary" />
+                                                    : <Square className="h-4 w-4 text-muted-foreground" />}
+                                            </button>
+                                        )}
                                     </td>
                                     <td className="px-2 py-1.5">
                                         {row.photo ? (
@@ -1074,24 +1138,46 @@ function ProductTable({
                                         </td>
                                     )}
                                     <td className="px-2 py-1.5 text-right">
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            value={input.boxCount || ''}
-                                            onChange={(e) => onUpdate(row, { boxCount: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })}
-                                            className="w-14 rounded-lg border border-border/50 bg-card/80 px-1.5 py-1 text-right text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
-                                        <span className="block text-[10px] text-muted-foreground">из {row.availableBoxes}</span>
+                                        {soldOut ? (
+                                            <>
+                                                <span className="text-muted-foreground">{row.arrivedBoxes}</span>
+                                                <span className="block text-[10px] text-green-600 dark:text-green-400">продано</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={input.boxCount || ''}
+                                                    onChange={(e) => onUpdate(row, { boxCount: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })}
+                                                    className="w-14 rounded-lg border border-border/50 bg-card/80 px-1.5 py-1 text-right text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                />
+                                                <span className="block text-[10px] text-muted-foreground">
+                                                    из {row.availableBoxes}{row.soldBoxes > 0 ? ` · пришло ${row.arrivedBoxes}` : ''}
+                                                </span>
+                                            </>
+                                        )}
                                     </td>
                                     <td className="px-2 py-1.5 text-right">
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            value={input.pairCount || ''}
-                                            onChange={(e) => onUpdate(row, { pairCount: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })}
-                                            className="w-16 rounded-lg border border-border/50 bg-card/80 px-1.5 py-1 text-right text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
-                                        <span className="block text-[10px] text-muted-foreground">из {row.availablePairs}</span>
+                                        {soldOut ? (
+                                            <>
+                                                <span className="text-muted-foreground">{row.arrivedPairs}</span>
+                                                <span className="block text-[10px] text-green-600 dark:text-green-400">продано</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={input.pairCount || ''}
+                                                    onChange={(e) => onUpdate(row, { pairCount: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })}
+                                                    className="w-16 rounded-lg border border-border/50 bg-card/80 px-1.5 py-1 text-right text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                />
+                                                <span className="block text-[10px] text-muted-foreground">
+                                                    из {row.availablePairs}{row.soldPairs > 0 ? ` · пришло ${row.arrivedPairs}` : ''}
+                                                </span>
+                                            </>
+                                        )}
                                     </td>
                                     {isOrganizer && (
                                         <td className="px-2 py-1.5 text-right text-muted-foreground hidden lg:table-cell">
@@ -1102,16 +1188,20 @@ function ProductTable({
                                         {money(row.recommendedSalePrice)}
                                     </td>
                                     <td className="px-2 py-1.5 text-right">
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={input.price || ''}
-                                            onChange={(e) => onUpdate(row, { price: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 })}
-                                            className="w-20 rounded-lg border-2 border-primary/30 bg-primary/5 px-1.5 py-1 text-right text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
+                                        {soldOut ? (
+                                            <span className="text-muted-foreground">—</span>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                value={input.price || ''}
+                                                onChange={(e) => onUpdate(row, { price: Number(e.target.value.replace(/[^0-9.]/g, '')) || 0 })}
+                                                className="w-20 rounded-lg border-2 border-primary/30 bg-primary/5 px-1.5 py-1 text-right text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                                            />
+                                        )}
                                     </td>
                                     <td className="px-2 py-1.5 text-right font-semibold whitespace-nowrap">
-                                        {money(rowTotal)} ₽
+                                        {soldOut ? <span className="text-muted-foreground font-normal">—</span> : `${money(rowTotal)} ₽`}
                                     </td>
                                     <td className="px-2 py-1.5">
                                         <div className="flex justify-end gap-0.5">
